@@ -59,7 +59,7 @@ use_gpu = torch.cuda.is_available()
 class Net(nn.Module):
     def __init__(self, num_classes, function, a, triangular):
         super(Net, self).__init__()
-        self.net = torchvision.models.vgg16(num_classes = num_classes, pretrained=False)
+        self.net = torchvision.models.vgg16(num_classes = num_classes, weights=False)
 
         self.function = function
         if triangular:
@@ -71,8 +71,5 @@ class Net(nn.Module):
 
     def forward(self, x):
         z = self.net(x)
-        if self.conservative == 'False':
-            return z, z
-        else:
-            x = self.softmax(z)
-            return x, z
+        x = self.softmax(z)
+        return x, z

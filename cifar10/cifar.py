@@ -21,7 +21,7 @@ hps = {'function': 'softmax',
        'num_classes': 10,
        'train_batch_size': 128,
        'test_batch_size': 100,
-       'epoch': 300,
+       'epoch': 10,
        'lr': 1e-3,
        'weight_decay': 5e-6,
        'print_freq':1,
@@ -56,9 +56,9 @@ def main(args):
         test_acc = test(testloader, net)   
         scheduler.step()
         with open(path + 'cifar_train_accuracy.txt', 'a') as f:
-            f.write('[epoch %d], train_accuracy is: %.5f\n' % (epoch, train_acc))
+            f.write('[epoch %d], train_accuracy is: %.5f \n' % (epoch, train_acc))
         with open(path + 'cifar_test_accuracy.txt', 'a') as f:
-            f.write('[epoch %d], test_accuracy is: %.5f\n' % (epoch, test_acc))
+            f.write('[epoch %d], test_accuracy is: %.5f \n' % (epoch, test_acc))
         if best_Acc < test_acc:
             best_Acc = test_acc 
             torch.save(net.state_dict(), path + 'best_net_checkpoint.pt')
@@ -113,22 +113,23 @@ def test(test_loader, net):
 
 if __name__ == '__main__':
     path = 'runs/'
-    with open(path + 'cifar_train_accuracy.txt', 'a')as f:
-        f.write('function: ' + hps['function'])
-        f.write('num_classes: ' + hps['num_classes'])
-        f.write('train_batch_size: ' + hps['train_batch_size'])
-        f.write('num_epochs: ' + hps['epoch'])
-        f.write('learning_rate: ' + hps['lr'])
-        f.write('weight_decay: ' + hps['weight_decay'])
-        f.write('conservative_a: ' + hps['conservative_a'])
+    with open(path + 'cifar_train_accuracy.txt', 'a') as f:
+        f.write(f'function: {hps["function"]}\n')
+        f.write(f'num_classes: {hps["num_classes"]}\n')
+        f.write(f'train_batch_size: {hps["train_batch_size"]}\n')
+        f.write(f'num_epochs: {hps["epoch"]}\n')
+        f.write(f'learning_rate: {hps["lr"]}\n')
+        f.write(f'weight_decay: {hps["weight_decay"]}\n')
+        f.write(f'conservative_a: {hps["conservative_a"]}\n')
 
-    with open(path + 'cifar_test_accuracy.txt', 'a')as f:
-        f.write('function: ' + hps['function'])
-        f.write('num_classes: ' + hps['num_classes'])
-        f.write('train_batch_size: ' + hps['train_batch_size'])
-        f.write('num_epochs: ' + hps['epoch'])
-        f.write('learning_rate: ' + hps['lr'])
-        f.write('weight_decay: ' + hps['weight_decay'])
-        f.write('conservative_a: ' + hps['conservative_a'])
+    with open(path + 'cifar_test_accuracy.txt', 'a') as f:
+        f.write(f'function: {hps["function"]}\n')
+        f.write(f'num_classes: {hps["num_classes"]}\n')
+        f.write(f'train_batch_size: {hps["train_batch_size"]}\n')
+        f.write(f'num_epochs: {hps["epoch"]}\n')
+        f.write(f'learning_rate: {hps["lr"]}\n')
+        f.write(f'weight_decay: {hps["weight_decay"]}\n')
+        f.write(f'conservative_a: {hps["conservative_a"]}\n')
+
 
     best_acc = main(hps)
