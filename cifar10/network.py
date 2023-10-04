@@ -8,8 +8,6 @@ import torch
 import torchvision
 import torch.nn as nn
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
 class Triangular(nn.Module):
     def __init__(self):
          super(Triangular, self).__init__()
@@ -40,7 +38,7 @@ class conservative_softmax(nn.Module):
         return pos
     
 class softRmax(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, device):
         super(softRmax, self).__init__()
         self.num_classes = num_classes
         self.e = torch.eye(num_classes).to(device)
@@ -54,20 +52,22 @@ class softRmax(nn.Module):
         pos = torch.stack(pos, 1)
         return pos
 
-use_gpu = torch.cuda.is_available()
-
 class Net(nn.Module):
-    def __init__(self, num_classes, function, a, triangular):
+    def __init__(self, device, num_classes, function, a, triangular):
         super(Net, self).__init__()
-        self.net = torchvision.models.vgg16(num_classes = num_classes, weights=False)
 
+        self.net = torchvision.models.vgg16(pretrained=True)
+        # self.net = torchvision.models.vgg19(pretrained=True)
+        self.net.classifier[6] = nn.Linear(4096,num_classes)
         self.function = function
         if triangular:
             convert_relu_to_triangular(self.net)
-        if function == 'softmax':
+        if function == 'cons_softmax':
             self.softmax = conservative_softmax(num_classes, a)
         elif function == 'softRmax':
-            self.softmax = softRmax(num_classes)
+            self.softmax = softRmax(num_classes, device)
+        elif function == 'softmax':
+            self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
         z = self.net(x)

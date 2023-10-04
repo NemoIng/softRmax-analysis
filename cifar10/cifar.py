@@ -19,22 +19,28 @@ hps = {'function': 'softmax',
        'test_all': True,
        'test_index': [0,1],
        'num_classes': 10,
-       'train_batch_size': 128,
-       'test_batch_size': 100,
+       'train_batch_size': 256,
+       'test_batch_size': 32,
        'epoch': 10,
-       'lr': 1e-3,
+       'lr': 5e-3,
        'weight_decay': 5e-6,
        'print_freq':1,
-       'conservative_a': 0.1,
+       'conservative_a': 0.2,
        'exp': 0,
        'triangular': False}
 
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+# When using apple silicon GPU:
+device = torch.device("mps")
+
+# When using other chip architecture:
+# device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def main(args):
-    net = Net(args['num_classes'], args['function'], args['conservative_a'], args['triangular']).to(device)
+    net = Net(device, args['num_classes'], args['function'], args['conservative_a'], args['triangular']).to(device)
+
     trainset = prepare_dataset(args['train_all'], args['train_index'], args['test_all'], args['test_index'], 'train') 
     testset = prepare_dataset(args['train_all'], args['train_index'], args['test_all'], args['test_index'], 'test') 
         
@@ -44,13 +50,11 @@ def main(args):
                                          shuffle=False, num_workers=1)
 
     criterion = nn.CrossEntropyLoss()
-
-    optimizer = optim.Adam(net.parameters(), lr=args['lr'],
+    optimizer = optim.SGD(net.parameters(), lr=args['lr'],
                       weight_decay=args['weight_decay'])
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
     best_Acc = 0 
-
     for epoch in range(1, args['epoch'] + 1):
         train_acc = train(trainloader, net, criterion, optimizer, epoch, args)
         test_acc = test(testloader, net)   
@@ -63,7 +67,6 @@ def main(args):
             best_Acc = test_acc 
             torch.save(net.state_dict(), path + 'best_net_checkpoint.pt')
     return best_Acc
-
 
 def train(train_loader, net, criterion, optimizer, epoch, args):
     net.train()
@@ -130,6 +133,5 @@ if __name__ == '__main__':
         f.write(f'learning_rate: {hps["lr"]}\n')
         f.write(f'weight_decay: {hps["weight_decay"]}\n')
         f.write(f'conservative_a: {hps["conservative_a"]}\n')
-
 
     best_acc = main(hps)
