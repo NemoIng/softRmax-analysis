@@ -7,21 +7,8 @@ Created on Fri Mar 19 10:09:59 2021
 import torch
 import torchvision
 import torch.nn as nn
+import torch.nn.functional as F
 
-class Triangular(nn.Module):
-    def __init__(self):
-         super(Triangular, self).__init__()
-    def forward(self, input):
-        out = nn.functional.relu(input + 1) - 2 * nn.functional.relu(input) + nn.functional.relu(input - 1)
-        return out
-
-def convert_relu_to_triangular(model):
-    for child_name, child in model.named_children():
-        if isinstance(child, nn.ReLU):
-            setattr(model, child_name, Triangular())
-        else:
-            convert_relu_to_triangular(child)
-            
 class conservative_softmax(nn.Module): 
     def __init__(self, num_classes, a):
         super(conservative_softmax, self).__init__()
@@ -53,15 +40,17 @@ class softRmax(nn.Module):
         return pos
 
 class Net(nn.Module):
-    def __init__(self, device, num_classes, function, a, triangular):
+    def __init__(self, device, num_classes, function, a):
         super(Net, self).__init__()
 
-        self.net = torchvision.models.vgg16(pretrained=False)
-        # self.net = torchvision.models.vgg19(pretrained=True)
-        self.net.classifier[6] = nn.Linear(4096,num_classes)
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3)
+        self.conv4 = nn.Conv2d(128, 256, kernel_size=3)
+        self.conv4_drop = nn.Dropout2d()
+        self.fc1 = nn.Linear(256, 10)
+        
         self.function = function
-        if triangular:
-            convert_relu_to_triangular(self.net)
         if function == 'cons_softmax':
             self.softmax = conservative_softmax(num_classes, a)
         elif function == 'softRmax':
@@ -70,6 +59,11 @@ class Net(nn.Module):
             self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        z = self.net(x)
-        x = self.softmax(z)
-        return x, z
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2(x), 2))
+        x = F.relu(self.conv3(x))
+        x = F.relu(self.conv4_drop(self.conv4(x)))
+
+        x = x.view(-1, 256)
+        x = F.relu(self.fc1(x))
+        return self.softmax(x)
