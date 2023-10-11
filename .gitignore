@@ -1,5 +1,8 @@
 # Added myself
 data/
+.DS_Store 
+runs/
+**/.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -4,6 +4,7 @@ Created on Fri Mar 19 10:02:50 2021
 @author: ziqi
 """
 
+import os
 import torch
 import torch.nn as nn 
 from torch import optim
@@ -13,7 +14,7 @@ from utils import AverageMeter
 from network import Net
 from dataset import prepare_dataset
 
-hps = {'function': 'softRmax',
+hps = {'function': 'softmax',
        'train_all': True,
        'train_index': [3,7],
        'test_all': True,
@@ -23,6 +24,7 @@ hps = {'function': 'softRmax',
        'test_batch_size': 128,
        'epoch': 5,
        'lr': 1e-3,
+       'weight_decay': 5e-6,
        'print_freq':1,
        'conservative_a': 0.2,
        'exp': 0,
@@ -37,36 +39,36 @@ device = torch.device("mps")
 # When using other chip architecture:
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def main(args):
-    net = Net(device, args['num_classes'], args['function'], args['conservative_a']).to(device)
+def main():
+    net = Net(device, hps['num_classes'], hps['function'], hps['conservative_a']).to(device)
 
-    trainset = prepare_dataset(args['train_all'], args['train_index'], args['test_all'], args['test_index'], 'train') 
-    testset = prepare_dataset(args['train_all'], args['train_index'], args['test_all'], args['test_index'], 'test') 
+    trainset = prepare_dataset(hps['train_all'], hps['train_index'], hps['test_all'], hps['test_index'], 'train') 
+    testset = prepare_dataset(hps['train_all'], hps['train_index'], hps['test_all'], hps['test_index'], 'test') 
         
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args['train_batch_size'],
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=hps['train_batch_size'],
                                               shuffle=True, num_workers=1)   
-    testloader = torch.utils.data.DataLoader(testset, batch_size=args['test_batch_size'],
+    testloader = torch.utils.data.DataLoader(testset, batch_size=hps['test_batch_size'],
                                          shuffle=False, num_workers=1)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(net.parameters(), lr=args['lr'])
+    optimizer = optim.Adam(net.parameters(), lr=hps['lr'], weight_decay=hps['weight_decay'])
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
-    best_Acc = 0 
-    for epoch in range(1, args['epoch'] + 1):
-        train_acc = train(trainloader, net, criterion, optimizer, epoch, args)
+    best_Acc = 0  
+    for epoch in range(1, hps['epoch'] + 1):
+        train_acc = train(trainloader, net, criterion, optimizer, epoch)
         test_acc = test(testloader, net)   
         scheduler.step()
-        with open(path + 'mnist_train_accuracy.txt', 'a') as f:
-            f.write('[epoch %d], train_accuracy is: %.5f \n' % (epoch, train_acc))
-        with open(path + 'mnist_test_accuracy.txt', 'a') as f:
-            f.write('[epoch %d], test_accuracy is: %.5f \n' % (epoch, test_acc))
+        with open(path + f'mnist_{hps["function"]}_train_accuracy.txt', 'a') as f:
+            f.write('[epoch %d], train_accuracy: %.5f \n' % (epoch, train_acc))
+        with open(path + f'mnist_{hps["function"]}_test_accuracy.txt', 'a') as f:
+            f.write('[epoch %d], test_accuracy: %.5f \n' % (epoch, test_acc))
         if best_Acc < test_acc:
             best_Acc = test_acc 
-            torch.save(net.state_dict(), path + 'best_net_checkpoint.pt')
+            torch.save(net.state_dict(), path + f'best_{hps["function"]}_net_checkpoint.pt')
     return best_Acc
 
-def train(train_loader, net, criterion, optimizer, epoch, args):
+def train(train_loader, net, criterion, optimizer, epoch):
     net.train()
     train_loss = AverageMeter()
     Acc_v = 0
@@ -88,7 +90,7 @@ def train(train_loader, net, criterion, optimizer, epoch, args):
         optimizer.step()
 
         train_loss.update(loss.data.item(), N)     
-        if epoch % args['print_freq'] == 0:
+        if epoch % hps['print_freq'] == 0:
             print('[epoch %d], [iter %d / %d], [train loss %.5f]' % (epoch, i + 1, len(train_loader), train_loss.avg))
 
     train_acc = (nb - Acc_v)/nb
@@ -112,8 +114,11 @@ def test(test_loader, net):
 
 
 if __name__ == '__main__':
-    path = 'runs/'
-    with open(path + 'mnist_train_accuracy.txt', 'a') as f:
+    path = 'runs'
+    if not os.path.exists(path):
+        os.makedirs(path)
+    path += '/'
+    with open(path + f'mnist_{hps["function"]}_train_accuracy.txt', 'a') as f:
         f.write(f'function: {hps["function"]}\n')
         f.write(f'num_classes: {hps["num_classes"]}\n')
         f.write(f'train_batch_size: {hps["train_batch_size"]}\n')
@@ -123,21 +128,29 @@ if __name__ == '__main__':
             f.write(f'train_index: {hps["train_index"]}\n') 
         f.write(f'num_epochs: {hps["epoch"]}\n')
         f.write(f'learning_rate: {hps["lr"]}\n')
+        f.write(f'weight_decay: {hps["weight_decay"]}\n')
         f.write(f'conservative_a: {hps["conservative_a"]}\n')
 
-    with open(path + 'mnist_test_accuracy.txt', 'a') as f:
+    with open(path + f'mnist_{hps["function"]}_test_accuracy.txt', 'a') as f:
         f.write(f'function: {hps["function"]}\n')
         f.write(f'num_classes: {hps["num_classes"]}\n')
         f.write(f'train_batch_size: {hps["train_batch_size"]}\n')
+
         if hps['test_all']:
            f.write(f'test_all: {hps["test_all"]}\n')   
         else:
             f.write(f'test_index: {hps["test_index"]}\n') 
-        f.write(f'train_batch_size: {hps["train_batch_size"]}\n')
+
+        f.write(f'test_batch_size: {hps["test_batch_size"]}\n')
         f.write(f'num_epochs: {hps["epoch"]}\n')
         f.write(f'learning_rate: {hps["lr"]}\n')
-        f.write(f'conservative_a: {hps["conservative_a"]}\n')
 
-    best_acc = main(hps)
-    with open(path + 'mnist_test_accuracy.txt', 'a') as f:
+        if hps['function'] == "cons":
+            f.write(f'conservative_a: {hps["conservative_a"]}\n')
+
+    best_acc = main()
+
+    with open(path + f'mnist_{hps["function"]}_test_accuracy.txt', 'a') as f:
         f.write(f'\nbest_accuracy: {best_acc}\n\n')
+    with open(path + f'mnist_{hps["function"]}_train_accuracy.txt', 'a') as f:
+        f.write('\n')

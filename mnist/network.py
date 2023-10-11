@@ -51,7 +51,7 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(256, 10)
         
         self.function = function
-        if function == 'cons_softmax':
+        if function == 'cons':
             self.softmax = conservative_softmax(num_classes, a)
         elif function == 'softRmax':
             self.softmax = softRmax(num_classes, device)
@@ -65,5 +65,5 @@ class Net(nn.Module):
         x = F.relu(self.conv4_drop(self.conv4(x)))
 
         x = x.view(-1, 256)
-        x = F.relu(self.fc1(x))
+        x = self.fc1(x)
         return self.softmax(x)
