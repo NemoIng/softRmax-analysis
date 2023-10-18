@@ -31,6 +31,8 @@ fastjsonschema @ file:///Users/cbousseau/work/recipes/ci_py311_2/python-fastjson
 filelock @ file:///Users/cbousseau/work/recipes/ci_py311/filelock_1677909105322/work
 fonttools==4.43.0
 gmpy2 @ file:///Users/cbousseau/work/recipes/ci_py311/gmpy2_1677937751357/work
+h5py==3.10.0
+hickle==5.0.2
 idna @ file:///Users/cbousseau/work/recipes/ci_py311/idna_1677906072337/work
 invoke==2.2.0
 ipykernel @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_98tee4lcge/croot/ipykernel_1691121640975/work

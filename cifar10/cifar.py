@@ -7,6 +7,7 @@ Created on Fri Mar 19 10:02:50 2021
 import os
 import torch
 import torch.nn as nn 
+import torch.utils.data as td
 from torch import optim
 from torch.autograd import Variable
 
@@ -44,10 +45,10 @@ def main():
 
     trainset = prepare_dataset(hps['train_all'], hps['train_index'], hps['test_all'], hps['test_index'], 'train') 
     testset = prepare_dataset(hps['train_all'], hps['train_index'], hps['test_all'], hps['test_index'], 'test') 
-        
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=hps['train_batch_size'],
+
+    trainloader = td.DataLoader(trainset, batch_size=hps['train_batch_size'],
                                               shuffle=True, num_workers=1)   
-    testloader = torch.utils.data.DataLoader(testset, batch_size=hps['test_batch_size'],
+    testloader = td.DataLoader(testset, batch_size=hps['test_batch_size'],
                                          shuffle=False, num_workers=1)
 
     criterion = nn.CrossEntropyLoss()
