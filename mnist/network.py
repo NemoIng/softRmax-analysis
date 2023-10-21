@@ -40,13 +40,13 @@ class softRmax(nn.Module):
         return pos
 
 class Net(nn.Module):
-    def __init__(self, device, num_classes, function, a):
+    def __init__(self, device, num_classes, function, a, kernel_size):
         super(Net, self).__init__()
 
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3)
-        self.conv4 = nn.Conv2d(128, 256, kernel_size=3)
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=kernel_size)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=kernel_size)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=kernel_size)
+        self.conv4 = nn.Conv2d(128, 256, kernel_size=kernel_size)
         self.conv4_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(256, 10)
         
