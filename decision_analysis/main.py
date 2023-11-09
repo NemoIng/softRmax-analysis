@@ -12,21 +12,21 @@ from dataset import generate_train_test
 from network import Net
 
 # Network parameters
-function = 'softmax'
+function = 'softRmax'
 lr = 1e-3
 conservative_a = 0.2
 
 # Data parameters
 num_classes = 4
-num_class_samples = 1000
+num_class_samples = 5000
 mean = [1, 2.5, 4, 5.5]
 sigma = 0.4
 
 # Train-Test parameters
-num_epoch = 20
-num_tries = 10
-train_batch_size = 64
-test_batch_size = 128
+num_epoch = [1,2,5,20,50]
+num_tries = 5
+train_batch_size = 256
+test_batch_size = 256
 test_size = 0.3
 
 # When using apple silicon GPU:
@@ -37,10 +37,10 @@ device = torch.device("cpu")
 
 def main():
     path = 'data/'
-    if not os.path.exists(f'{path}{num_classes}_{num_class_samples}_{test_size}_{str(mean[:num_classes])}_{sigma}.hkl'):
+    if not os.path.exists(f'{path}{num_classes}_{num_class_samples}_{sigma}_{str(mean[:num_classes])}.hkl'):
         generate_train_test(num_classes, num_class_samples, test_size, mean, sigma)
 
-    data = hkl.load(f'{path}{num_classes}_{num_class_samples}_{test_size}_{str(mean[:num_classes])}_{sigma}.hkl')
+    data = hkl.load(f'{path}{num_classes}_{num_class_samples}_{sigma}_{str(mean[:num_classes])}.hkl')
     x_train, x_test, y_train, y_test = data.values()
 
     X_train = torch.tensor(x_train, dtype=torch.float32)
@@ -52,24 +52,27 @@ def main():
     train_dataset = td.TensorDataset(X_train, y_train)
     train_loader = td.DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
 
-    best_acc = 0
-    for i in range(num_tries):
-        # For each try, we reinitialize the network
-        net = Net(device, num_classes, function, conservative_a)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(net.parameters(), lr=lr)
+    for epoch in num_epoch:
+        best_acc = 0
+        print(f"Training with {epoch} epoch")
+        for i in range(num_tries):
+            # For each try, we reinitialize the network
+            net = Net(device, num_classes, function, conservative_a)
+            criterion = nn.CrossEntropyLoss()
+            optimizer = optim.Adam(net.parameters(), lr=lr)
 
-        train(train_loader, net, criterion, optimizer)
-        acc = test(net, X_test, y_test)
+            train(train_loader, net, criterion, optimizer, epoch)
+            acc = test(net, X_test, y_test)
 
-        if acc > best_acc:
-            best_acc = acc
-            plot_classification(net, X_train, y_train)
-    print(f"Test Accuracy: {best_acc}")
+            if acc > best_acc:
+                best_acc = acc
+                print(epoch)
+                plot_classification(net, X_train, y_train, epoch, acc)
+        print(f"Test Accuracy: {best_acc}")
 
 
-def train(train_loader, net, criterion, optimizer):
-    for epoch in range(num_epoch):
+def train(train_loader, net, criterion, optimizer, epoch):
+    for epoch in range(epoch):
         net.train()
         running_loss = 0.0
         for inputs, labels in train_loader:
@@ -101,7 +104,7 @@ def plot_training_data(X, y, title="Data Distribution"):
     plt.legend()
     plt.show()
 
-def plot_classification(net, X_train, y_train):
+def plot_classification(net, X_train, y_train, epoch, acc):
     fig, (ax1, ax2) = plt.subplots(2, constrained_layout=True) 
     ax1.grid()
     output = net(X_train)
@@ -110,7 +113,7 @@ def plot_classification(net, X_train, y_train):
     colorlist = ["red","violet","blue","green"]
     cmap = LinearSegmentedColormap.from_list("", colorlist[:num_classes])
 
-    ax1.scatter(X_train, confidence, c=y_train, cmap=cmap)
+    ax1.scatter(X_train, confidence, c=y_train, cmap=cmap, s=5)
     ax1.set_yticks(np.arange(0.2, 1.1, 0.1))
     ax1.set_title('Confidence of Model')
     ax1.set_ylabel('Confidence')
@@ -119,15 +122,16 @@ def plot_classification(net, X_train, y_train):
 
     for class_id in range(num_classes):
         class_data = X_train[y_train == class_id]
-        ax2.hist(class_data, bins, alpha=0.5, label=f'Class {class_id}'
-                     , color = colorlist[class_id])
+        ax2.hist(class_data, bins, alpha=0.5, label=f'Class {class_id}', color = colorlist[class_id])
         
     ax2.set_title('Training data distribution')
     ax2.set_xlabel('Input Data')
     ax2.set_ylabel('Frequency')
 
-    fig.suptitle(f'{function}')
-    plt.savefig(f'figures/{num_classes}_{num_class_samples}_{test_size}_{num_epoch}e_{str(mean[:num_classes])}_{sigma}_{function}.png', dpi=200)
+    fig.suptitle(f'{function}, acc: {round(acc,3)}')
+    if not os.path.isdir(f'figures/{num_classes}_{num_class_samples}'):
+        os.mkdir(f'figures/{num_classes}_{num_class_samples}')
+    plt.savefig(f'figures/{num_classes}_{num_class_samples}/{num_classes}_{num_class_samples}_{sigma}_{epoch}e_{str(mean[:num_classes])}_{function}.png', dpi=200)
 
 if __name__ == '__main__':
     main()

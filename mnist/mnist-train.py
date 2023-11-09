@@ -10,21 +10,21 @@ from network import Net
 from dataset import prepare_dataset
 
 # Network parameters
-function = 'softmax'
+function = 'softRmax'
 kernel_size = 3
 conservative_a = 0.2
 
 # Data parameters
 num_classes = 10
 train_all = True
-train_index = [3, 7]
+train_index = [3,7]
 test_all = True
-test_index = [3, 7]
+test_index = [3,7]
 
 # Train-Test parameters
-num_epoch = 3
-num_tries = 3
-train_batch_size = 32
+num_epoch = 20
+num_tries = 1
+train_batch_size = 256
 test_batch_size = 128
 lr = 1e-3
 weight_decay = 5e-6
@@ -48,13 +48,13 @@ def main():
     best_overall_acc = 0
     for i in range(num_tries):
         with open(path + f'mnist_{function}_{num_epoch}_test_accuracy.txt', 'a') as f:
-            f.write(f'\nrun_nr: {i+1}\n\n')
+            f.write(f'\nrun_nr: {i+1}/{num_tries}\n\n')
         # For each try we reinitialize the network
         net = Net(device, num_classes, function, conservative_a, kernel_size).to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
-
+        best_net = net
         best_curr_try_acc = 0
         for epoch in range(1, num_epoch + 1):
             train_acc = train(trainloader, net, criterion, optimizer, epoch)
@@ -66,9 +66,10 @@ def main():
                 f.write(f'[epoch {epoch}], test_accuracy: {test_acc:.5f}\n')
             if test_acc > best_curr_try_acc:
                 best_curr_try_acc = test_acc 
+                best_net = net
         if best_curr_try_acc > best_overall_acc:
             best_overall_acc = best_curr_try_acc
-            torch.save(net.state_dict(), path + f'best_{function}_{num_epoch}_net_checkpoint.pt')
+            torch.save(best_net.state_dict(), path + f'best_{function}_{num_epoch}_net_checkpoint.pt')
     
     return best_overall_acc
 
@@ -117,7 +118,10 @@ def test(test_loader, net):
     return test_acc
 
 if __name__ == '__main__':
-    path = 'runs'
+    if train_all:
+        path = f'runs/{num_classes}_classes'
+    else:
+        path = f'runs/{train_index}_classes'
     if not os.path.exists(path):
         os.makedirs(path)
     path += '/'

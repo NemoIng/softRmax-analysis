@@ -48,7 +48,7 @@ class Net(nn.Module):
         self.conv3 = nn.Conv2d(64, 128, kernel_size=kernel_size)
         self.conv4 = nn.Conv2d(128, 256, kernel_size=kernel_size)
         self.conv4_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(256, 10)
+        self.fc1 = nn.Linear(256, num_classes)
         
         self.function = function
         if function == 'cons':

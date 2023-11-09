@@ -1,6 +1,4 @@
 from matplotlib.colors import LogNorm
-import numpy as np
-from sklearn.decomposition import PCA
 import torch
 import torch.utils.data as td
 from matplotlib import pyplot as plt
@@ -12,7 +10,7 @@ from network import Net
 
 # Network parameters
 function = 'softmax'
-num_epoch = 3
+num_epoch = 20
 kernel_size = 3
 conservative_a = 0.2
 
@@ -35,7 +33,10 @@ device = torch.device("cpu")
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def main():
-    path = f'runs/best_{function}_{num_epoch}_net_checkpoint.pt'
+    if train_all:
+        path = f'runs/{num_classes}_classes/best_{function}_{num_epoch}_net_checkpoint.pt'
+    else:
+        path = f'runs/{train_index}_classes/best_{function}_{num_epoch}_net_checkpoint.pt'
 
     testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test') 
     testloader = td.DataLoader(testset, batch_size=test_batch_size,
@@ -53,11 +54,15 @@ def class_acc(loader, net):
     class_total = list(0. for i in range(num_classes))
 
     with torch.no_grad():
+        total_correct = 0
+        total_samples = 0
         for data in loader:
             images, labels = data
             output = net(images)
             _, predicted = torch.max(output, 1)
             c = (predicted == labels).squeeze()
+            total_correct += c.sum().item()
+            total_samples += labels.size(0)
             for i in range(len(images)):
                 label = labels[i]
                 class_correct[label] += c[i].item()
@@ -65,6 +70,9 @@ def class_acc(loader, net):
 
     for i in range(10):
         print(f'Accuracy of {classes[i]} : {round(100 * class_correct[i] / (1e-8 + class_total[i]),2)}%')
+    
+    total_accuracy = 100 * total_correct / total_samples
+    print(f'Total Accuracy: {round(total_accuracy, 2)}%')
 
 def confusion_matrix(loader, net):
     confusion_matrix = MulticlassConfusionMatrix(num_classes)
@@ -83,7 +91,7 @@ def confusion_matrix(loader, net):
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
     plt.title('Confusion Matrix')
-    plt.savefig(f'figures/conf_matrix/{num_classes}_{function}.png', dpi=200)
+    plt.savefig(f'figures/conf_matrix/{num_classes}_{function}_{num_epoch}.png', dpi=200)
 
 if __name__ == '__main__':
     main()

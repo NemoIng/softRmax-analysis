@@ -9,11 +9,9 @@ import torchvision
 import torchvision.transforms as transforms
 
 def prepare_dataset(train_all, train_index, test_all, test_index, mode):
-    transform_train = transforms.Compose([transforms.ToTensor(),
-                                          transforms.Normalize((0.1307,), (0.3081,))])
+    transform_train = transforms.Compose([transforms.ToTensor()])
 
-    transform_test = transforms.Compose([transforms.ToTensor(),
-                                          transforms.Normalize((0.1307,), (0.3081,))])
+    transform_test = transforms.Compose([transforms.ToTensor()])
 
     train_classes = {}
     if not train_all:

@@ -18,5 +18,5 @@ def generate_train_test(num_classes, num_class_samples, test_size, mean, sigma):
     data = {'xtrain': x_train, 'xtest': x_test,'ytrain': y_train,'ytest':y_test}
 
     # save dataset
-    hkl.dump(data,f'data/{num_classes}_{num_class_samples}_{test_size}_{str(mean[:num_classes])}_{sigma}.hkl')
+    hkl.dump(data,f'data/{num_classes}_{num_class_samples}_{sigma}_{str(mean[:num_classes])}.hkl')
 

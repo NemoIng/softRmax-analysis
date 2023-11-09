@@ -1,7 +1,9 @@
 """
-Created on Fri Mar 19 10:02:50 2021
-
+Core Code by
 @author: ziqi
+
+Edited by
+@author: Nemo
 """
 
 import os
@@ -16,7 +18,7 @@ from network import Net
 from dataset import prepare_dataset
 
 # Network parameter
-function = 'softmax'
+function = 'softRmax'
 conservative_a = 0.2
 exp = 0
 triangular = False
@@ -29,9 +31,9 @@ test_all = True
 test_index = [0, 1]
 
 # Train-Test parameters
-num_epoch = 5
+num_epoch = 20
 train_batch_size = 256
-test_batch_size = 128
+test_batch_size = 256
 lr = 5e-3
 weight_decay = 5e-6
 print_freq = 1
@@ -45,7 +47,9 @@ device = torch.device("mps")
 # Main Function
 def main():
     net = Net(device, num_classes, function, conservative_a, triangular).to(device)
-
+    # path2 = f'runs/best_{function}_net_checkpoint.pt'
+    # if os.path.exists(path):
+    #     net.load_state_dict(torch.load(path2))
     trainset = prepare_dataset(train_all, train_index, test_all, test_index, 'train') 
     testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test') 
 
@@ -61,9 +65,9 @@ def main():
 
     best_Acc = 0
     for epoch in range(1, num_epoch + 1):
+        scheduler.step()
         train_acc = train(trainloader, net, criterion, optimizer, epoch)
         test_acc = test(testloader, net)
-        scheduler.step()
         with open(path + f'cifar_{function}_train_accuracy.txt', 'a') as f:
             f.write(f'[epoch {epoch}], train_accuracy is: {train_acc:.5f}\n')
         with open(path + f'cifar_{function}_test_accuracy.txt', 'a') as f:
@@ -141,3 +145,4 @@ if __name__ == '__main__':
         f.write(f'function: {function}\n')
         f.write(f'num_classes: {num_classes}\n')
         f.write(f'train_batch_size: {train_batch_size}\n')
+    best_acc = main()
