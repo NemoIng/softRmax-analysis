@@ -9,12 +9,12 @@ from dataset import prepare_dataset
 from network import Net
 
 # Network parameters
-function = 'softmax'
-num_epoch = 20
+function = 'softRmax'
 kernel_size = 3
 conservative_a = 0.2
 
 # Data parameters
+normalized = True
 num_classes = 10
 train_all = True
 train_index = [3, 7]
@@ -33,12 +33,7 @@ device = torch.device("cpu")
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def main():
-    if train_all:
-        path = f'runs/{num_classes}_classes/best_{function}_{num_epoch}_net_checkpoint.pt'
-    else:
-        path = f'runs/{train_index}_classes/best_{function}_{num_epoch}_net_checkpoint.pt'
-
-    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test') 
+    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test', normalized) 
     testloader = td.DataLoader(testset, batch_size=test_batch_size,
                                          shuffle=False, num_workers=1)
     
@@ -91,7 +86,21 @@ def confusion_matrix(loader, net):
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
     plt.title('Confusion Matrix')
-    plt.savefig(f'figures/conf_matrix/{num_classes}_{function}_{num_epoch}.png', dpi=200)
+    if normalized:
+        plt.savefig(f'figures/conf_matrix/{num_classes}_{function}.png', dpi=200)
+    else:
+        plt.savefig(f'figures/no_norm/conf_matrix/{num_classes}_{function}.png', dpi=200)
+    plt.close()
 
 if __name__ == '__main__':
+    if normalized:
+        if train_all:
+            path = f'runs/{num_classes}_classes/best_{function}_net_checkpoint.pt'
+        else:
+            path = f'runs/{train_index}_classes/best_{function}_net_checkpoint.pt'
+    else:
+        if train_all:
+            path = f'runs/{num_classes}_classes/no_norm/best_{function}_net_checkpoint.pt'
+        else:
+            path = f'runs/{train_index}_classes/no_norm/best_{function}_net_checkpoint.pt'
     main()

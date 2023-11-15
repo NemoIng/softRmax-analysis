@@ -1,3 +1,9 @@
+"""
+@author: NemoIng (Nemo ingendaa)
+
+Using/Inspiration code from:
+- https://github.com/ziqiwangsilvia/attack 
+"""
 import os
 import torch
 import torch.nn as nn 
@@ -15,6 +21,7 @@ kernel_size = 3
 conservative_a = 0.2
 
 # Data parameters
+normalized = True
 num_classes = 10
 train_all = True
 train_index = [3,7]
@@ -22,7 +29,7 @@ test_all = True
 test_index = [3,7]
 
 # Train-Test parameters
-num_epoch = 20
+num_epoch = 10
 num_tries = 1
 train_batch_size = 256
 test_batch_size = 128
@@ -37,8 +44,8 @@ device = torch.device("mps")
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def main():
-    trainset = prepare_dataset(train_all, train_index, test_all, test_index, 'train') 
-    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test') 
+    trainset = prepare_dataset(train_all, train_index, test_all, test_index, 'train', normalized) 
+    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test', normalized) 
         
     trainloader = td.DataLoader(trainset, batch_size=train_batch_size,
                                               shuffle=True, num_workers=1)   
@@ -47,7 +54,7 @@ def main():
     
     best_overall_acc = 0
     for i in range(num_tries):
-        with open(path + f'mnist_{function}_{num_epoch}_test_accuracy.txt', 'a') as f:
+        with open(path + f'mnist_{function}_test_accuracy.txt', 'a') as f:
             f.write(f'\nrun_nr: {i+1}/{num_tries}\n\n')
         # For each try we reinitialize the network
         net = Net(device, num_classes, function, conservative_a, kernel_size).to(device)
@@ -60,16 +67,16 @@ def main():
             train_acc = train(trainloader, net, criterion, optimizer, epoch)
             test_acc = test(testloader, net)   
             scheduler.step()
-            with open(path + f'mnist_{function}_{num_epoch}_train_accuracy.txt', 'a') as f:
+            with open(path + f'mnist_{function}_train_accuracy.txt', 'a') as f:
                 f.write(f'[epoch {epoch}], train_accuracy: {train_acc:.5f}\n')
-            with open(path + f'mnist_{function}_{num_epoch}_test_accuracy.txt', 'a') as f:
+            with open(path + f'mnist_{function}_test_accuracy.txt', 'a') as f:
                 f.write(f'[epoch {epoch}], test_accuracy: {test_acc:.5f}\n')
             if test_acc > best_curr_try_acc:
                 best_curr_try_acc = test_acc 
                 best_net = net
         if best_curr_try_acc > best_overall_acc:
             best_overall_acc = best_curr_try_acc
-            torch.save(best_net.state_dict(), path + f'best_{function}_{num_epoch}_net_checkpoint.pt')
+            torch.save(best_net.state_dict(), path + f'best_{function}_net_checkpoint.pt')
     
     return best_overall_acc
 
@@ -79,7 +86,7 @@ def train(train_loader, net, criterion, optimizer, epoch):
     Acc_v = 0
     nb = 0
 
-    for i, data in enumerate(train_loader):
+    for data in train_loader:
         X, Y = data 
         X = Variable(X).to(device)
         Y = Variable(Y).squeeze().to(device)
@@ -118,14 +125,20 @@ def test(test_loader, net):
     return test_acc
 
 if __name__ == '__main__':
-    if train_all:
-        path = f'runs/{num_classes}_classes'
+    if normalized:
+        if train_all:
+            path = f'runs/{num_classes}_classes'
+        else:
+            path = f'runs/{train_index}_classes'
     else:
-        path = f'runs/{train_index}_classes'
+        if train_all:
+            path = f'runs/no_norm/{num_classes}_classes'
+        else:
+            path = f'runs/no_norm/{train_index}_classes'
     if not os.path.exists(path):
         os.makedirs(path)
     path += '/'
-    with open(path + f'mnist_{function}_{num_epoch}_train_accuracy.txt', 'a') as f:
+    with open(path + f'mnist_{function}_train_accuracy.txt', 'a') as f:
         f.write(f'function: {function}\n')
         f.write(f'num_classes: {num_classes}\n')
         f.write(f'train_batch_size: {train_batch_size}\n')
@@ -139,7 +152,7 @@ if __name__ == '__main__':
         f.write(f'conservative_a: {conservative_a}\n')
         f.write(f'kernel_size: {kernel_size}\n')
 
-    with open(path + f'mnist_{function}_{num_epoch}_test_accuracy.txt', 'a') as f:
+    with open(path + f'mnist_{function}_test_accuracy.txt', 'a') as f:
         f.write(f'function: {function}\n')
         f.write(f'num_classes: {num_classes}\n')
         f.write(f'train_batch_size: {train_batch_size}\n')
@@ -158,7 +171,7 @@ if __name__ == '__main__':
 
     best_acc = main()
 
-    with open(path + f'mnist_{function}_{num_epoch}_test_accuracy.txt', 'a') as f:
+    with open(path + f'mnist_{function}_test_accuracy.txt', 'a') as f:
         f.write(f'\nbest_accuracy: {best_acc}\n\n')
-    with open(path + f'mnist_{function}_{num_epoch}_train_accuracy.txt', 'a') as f:
+    with open(path + f'mnist_{function}_train_accuracy.txt', 'a') as f:
         f.write('\n')
