@@ -55,9 +55,7 @@ class softRmax(nn.Module):
 class Net(nn.Module):
     def __init__(self, device, num_classes, function, a, triangular):
         super(Net, self).__init__()
-
-        # self.net = torchvision.models.vgg16(num_classes=num_classes, pretrained=False)
-        self.net = torchvision.models.vgg19(pretrained=True)
+        self.net = torchvision.models.vgg16(pretrained=True)
         self.net.classifier[6] = nn.Linear(4096,num_classes)
         self.function = function
         if triangular:
@@ -71,7 +69,5 @@ class Net(nn.Module):
 
     def forward(self, x):
         z = self.net(x)
-        # if self.function == 'softmax':
-        #     return z
         x = self.softmax(z)
         return x

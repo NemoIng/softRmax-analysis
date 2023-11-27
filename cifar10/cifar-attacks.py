@@ -58,7 +58,7 @@ def main():
     net = Net(device, num_classes, function, conservative_a, triangular).to(device)
     net.load_state_dict(torch.load(path))
 
-    print(f'Loaded the {function} network')
+    print(f'Loaded the {function} network (norm:{normalized})')
     net.eval()
 
     adv_data = create_data(net, testloader, testing_eps)

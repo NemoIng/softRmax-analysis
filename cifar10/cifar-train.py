@@ -17,9 +17,8 @@ from network import Net
 from dataset import prepare_dataset
 
 # Network parameter
-function = 'softRmax'
+function = 'softmax'
 conservative_a = 0.2
-exp = 0
 triangular = False
 
 # Data parameters
@@ -56,8 +55,7 @@ def main():
                                          shuffle=False, num_workers=1)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=lr,
-                          weight_decay=weight_decay)
+    optimizer = optim.SGD(net.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
     best_Acc = 0

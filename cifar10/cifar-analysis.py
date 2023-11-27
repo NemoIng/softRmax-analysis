@@ -10,12 +10,12 @@ from dataset import prepare_dataset
 from network import Net
 
 # Network parameters
-function = 'softRmax'
+function = 'softmax'
 triangular = False
 conservative_a = 0.2
 
 # Data parameters
-normalized = True
+normalized = False
 num_classes = 10
 train_all = True
 train_index = [3, 7]
@@ -41,7 +41,7 @@ def main():
     
     net = Net(device, num_classes, function, conservative_a, triangular)
     net.load_state_dict(torch.load(path))
-    print(f'Loaded the {function} network')
+    print(f'Loaded the {function} network (norm:{normalized})')
 
     class_acc(testloader, net)
     confusion_matrix(testloader, net)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
             path = f'runs/{train_index}_classes/best_{function}_net_checkpoint.pt'
     else:
         if train_all:
-            path = f'runs/{num_classes}_classes/no_norm/best_{function}_net_checkpoint.pt'
+            path = f'runs/no_norm/{num_classes}_classes/best_{function}_net_checkpoint.pt'
         else:
-            path = f'runs/{train_index}_classes/no_norm/best_{function}_net_checkpoint.pt'
+            path = f'runs/no_norm/{train_index}_classes/best_{function}_net_checkpoint.pt'
     main()

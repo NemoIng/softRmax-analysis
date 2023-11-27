@@ -25,17 +25,17 @@ class_to_plot = 7
 bim_iters = 10 # num of steps
 
 # Network parameters
-function = 'softRmax'
+function = 'softmax'
 num_epoch = 10
 kernel_size = 3
 conservative_a = 0.2
 
 # Data parameters
-normalized = False
-num_classes = 2
-train_all = False
+normalized = True
+num_classes = 10
+train_all = True
 train_index = [3, 7]
-test_all = False
+test_all = True
 test_index = [3, 7]
 
 # Test parameters
