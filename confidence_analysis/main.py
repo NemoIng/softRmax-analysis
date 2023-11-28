@@ -17,13 +17,13 @@ lr = 1e-2
 conservative_a = 0.2
 
 # Data parameters
-num_classes = 2
+num_classes = 5
 num_class_samples = 10000
 mean = [-4, -1, 2, 5, 8]
 sigma = 0.6
 
 # Train-Test parameters
-num_epoch = [2,5,10,20,50]
+num_epoch = [2]
 num_tries = 5
 train_batch_size = 512
 test_batch_size = 512
