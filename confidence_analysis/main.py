@@ -23,7 +23,7 @@ mean = [-4, -1, 2, 5, 8]
 sigma = 0.6
 
 # Train-Test parameters
-num_epoch = [2]
+num_epoch = [2,5,10,20,50]
 num_tries = 5
 train_batch_size = 512
 test_batch_size = 512

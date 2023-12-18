@@ -4,8 +4,8 @@ Created on Fri Mar 19 10:09:59 2021
 @author: ziqi, edited by Nemo Ingendaa
 
 """
+from math import sqrt
 import torch
-import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 
