@@ -1,16 +1,7 @@
 # softRmax-analysis
 Analysis and comparison between regular softmax and softRmax, a more robust alternative.
 
-Testing its robustness on two well known datasets: MNIST and CIFAR10 using adversarial attacks (FGSM and BIM).
-
-## Comparison
-### FGSM Performance of softmax and softRmax for MNIST (non normalized)
-<img src="https://github.com/NemoIng/softRmax-analysis/assets/82096802/56dc14d7-9716-4e53-b58b-ea29cc29f8d9" width=500>
-<img src="https://github.com/NemoIng/softRmax-analysis/assets/82096802/0d0e6a0a-1dae-4862-b051-fba45276c97e" width=500>
-
-### FGSM Performance of softmax and softRmax for CIFAR10 (normalized)
-<img src="https://github.com/NemoIng/softRmax-analysis/assets/82096802/87a5dd31-5427-4538-ba0b-d758933326e6" width=500>
-<img src="https://github.com/NemoIng/softRmax-analysis/assets/82096802/f589f263-7774-420c-816e-69baeac1a603" width=500>
+Testing its robustness on three well known datasets: MNIST, CIFAR10, and Fashion-MNIST using adversarial attacks (FGSM, BIM and Average-sample).
 
 ## Installation & Workings
 **Installation**
