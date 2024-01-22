@@ -5,16 +5,14 @@ from matplotlib import pyplot as plt
 from torchmetrics.classification import MulticlassConfusionMatrix
 import seaborn as sns
 
-from dataset import prepare_dataset
-from network import Net
+from mnist_dataset import prepare_dataset
+from mnist_network import Net
 
 # Network parameters
-function = 'softRmax'
+function = 'softmax'
 kernel_size = 3
-conservative_a = 0.2
 
 # Data parameters
-normalized = True
 num_classes = 10
 train_all = True
 train_index = [3, 7]
@@ -33,11 +31,11 @@ device = torch.device("cpu")
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def main():
-    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test', normalized) 
+    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test') 
     testloader = td.DataLoader(testset, batch_size=test_batch_size,
                                          shuffle=False, num_workers=1)
     
-    net = Net(device, num_classes, function, conservative_a, kernel_size)
+    net = Net(device, num_classes, function, kernel_size)
     net.load_state_dict(torch.load(path))
     print(f'Loaded the {function} network')
 
@@ -86,21 +84,12 @@ def confusion_matrix(loader, net):
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
     plt.title('Confusion Matrix')
-    if normalized:
-        plt.savefig(f'figures/conf_matrix/{num_classes}_{function}.png', dpi=200)
-    else:
-        plt.savefig(f'figures/no_norm/conf_matrix/{num_classes}_{function}.png', dpi=200)
+    plt.savefig(f'figures/conf_matrix/{num_classes}_{function}.png', dpi=200)
     plt.close()
 
 if __name__ == '__main__':
-    if normalized:
-        if train_all:
-            path = f'runs/{num_classes}_classes/best_{function}_net_checkpoint.pt'
-        else:
-            path = f'runs/{train_index}_classes/best_{function}_net_checkpoint.pt'
+    if train_all:
+        path = f'runs/{num_classes}_classes/best_{function}_net_checkpoint.pt'
     else:
-        if train_all:
-            path = f'runs/{num_classes}_classes/no_norm/best_{function}_net_checkpoint.pt'
-        else:
-            path = f'runs/{train_index}_classes/no_norm/best_{function}_net_checkpoint.pt'
+        path = f'runs/{train_index}_classes/best_{function}_net_checkpoint.pt'
     main()

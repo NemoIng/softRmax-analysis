@@ -4,7 +4,6 @@
 Using/Inspiration code from:
 - https://github.com/ziqiwangsilvia/attack 
 """
-
 import os
 import torch
 import torch.nn as nn 
@@ -13,16 +12,14 @@ from torch import optim
 from torch.autograd import Variable
 
 from utils import AverageMeter
-from network import Net
-from dataset import prepare_dataset
+from cifar_network import Net
+from cifar_dataset import prepare_dataset
+from cifar_bound import plot_decision_boundary
 
 # Network parameter
 function = 'softmax'
-conservative_a = 0.2
-triangular = False
 
 # Data parameters
-normalized = False
 num_classes = 10
 train_all = True
 train_index = [0, 1]
@@ -30,12 +27,14 @@ test_all = True
 test_index = [0, 1]
 
 # Train-Test parameters
-num_epoch = 20
+num_epoch = 15
 train_batch_size = 256
 test_batch_size = 256
 lr = 5e-3
 weight_decay = 5e-6
 print_freq = 1
+
+plot_epochs = [] # for which epochs a decision boundary plot will be created
 
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
@@ -45,16 +44,19 @@ device = torch.device("mps")
 
 # Main Function
 def main():
-    net = Net(device, num_classes, function, conservative_a, triangular).to(device)
-    trainset = prepare_dataset(train_all, train_index, test_all, test_index, 'train', normalized) 
-    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test', normalized) 
+    net = Net(device, num_classes, function).to(device)
+    trainset = prepare_dataset(train_all, train_index, test_all, test_index, 'train') 
+    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test') 
 
     trainloader = td.DataLoader(trainset, batch_size=train_batch_size,
                                               shuffle=True, num_workers=1)   
     testloader = td.DataLoader(testset, batch_size=test_batch_size,
                                          shuffle=False, num_workers=1)
 
-    criterion = nn.CrossEntropyLoss()
+    if function == 'softRmax':
+        criterion = nn.NLLLoss()
+    else:   
+        criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
@@ -70,6 +72,8 @@ def main():
         if best_Acc < test_acc:
             best_Acc = test_acc
             torch.save(net.state_dict(), path + f'best_{function}_net_checkpoint.pt')
+        if epoch in plot_epochs:
+            plot_decision_boundary(net, num_classes, epoch, function, index=test_index)
     per_class_acc(testloader, net)
     return best_Acc
 
@@ -89,7 +93,10 @@ def train(train_loader, net, criterion, optimizer, epoch):
 
         outputs = net(X)
         Acc_v = Acc_v + (outputs.argmax(1) - Y).nonzero().size(0)
-        loss = criterion(outputs, Y)
+        if function == 'softRmax':
+            loss = criterion(torch.log(outputs), Y)
+        else:
+            loss = criterion(outputs, Y)
 
         optimizer.zero_grad()
         loss.backward()
@@ -114,6 +121,8 @@ def test(test_loader, net):
         nb = nb + len(X)
 
         outputs = net(X)
+        softmax = nn.Softmax(dim=1)
+        outputs = softmax(outputs)
         Acc_y = Acc_y + (outputs.argmax(1) - Y).nonzero().size(0)
 
     test_acc = (nb - Acc_y) / nb
@@ -140,16 +149,10 @@ def per_class_acc(loader, net):
             classes[i], 100 * class_correct[i] / (1e-8 + class_total[i])))
 
 if __name__ == '__main__':
-    if normalized:
-        if train_all:
-            path = f'runs/{num_classes}_classes'
-        else:
-            path = f'runs/{train_index}_classes'
+    if train_all:
+        path = f'runs/{num_classes}_classes'
     else:
-        if train_all:
-            path = f'runs/no_norm/{num_classes}_classes'
-        else:
-            path = f'runs/no_norm/{train_index}_classes'
+        path = f'runs/{train_index}_classes'
     if not os.path.exists(path):
         os.makedirs(path)
     path += '/'
@@ -164,7 +167,6 @@ if __name__ == '__main__':
         f.write(f'num_epochs: {num_epoch}\n')
         f.write(f'learning_rate: {lr}\n')
         f.write(f'weight_decay: {weight_decay}\n')
-        f.write(f'conservative_a: {conservative_a}\n')
 
     with open(path + f'cifar_{function}_test_accuracy.txt', 'a') as f:
         f.write(f'function: {function}\n')

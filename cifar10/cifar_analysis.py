@@ -1,21 +1,18 @@
+from hmac import new
 from matplotlib.colors import LogNorm
-import numpy as np
 import torch
 import torch.utils.data as td
 from matplotlib import pyplot as plt
 from torchmetrics.classification import MulticlassConfusionMatrix
 import seaborn as sns
 
-from dataset import prepare_dataset
-from network import Net
+from cifar_dataset import prepare_dataset
+from cifar_network import Net
 
 # Network parameters
 function = 'softmax'
-triangular = False
-conservative_a = 0.2
 
 # Data parameters
-normalized = False
 num_classes = 10
 train_all = True
 train_index = [3, 7]
@@ -23,7 +20,7 @@ test_all = True
 test_index = [3, 7]
 
 # Test parameters
-test_batch_size = 128
+test_batch_size = 256
 
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
@@ -35,13 +32,13 @@ device = torch.device("cpu")
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def main():
-    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test', normalized) 
+    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test')
     testloader = td.DataLoader(testset, batch_size=test_batch_size,
                                          shuffle=False, num_workers=1)
     
-    net = Net(device, num_classes, function, conservative_a, triangular)
+    net = Net(device, num_classes, function)
     net.load_state_dict(torch.load(path))
-    print(f'Loaded the {function} network (norm:{normalized})')
+    print(f'Loaded the {function} network')
 
     class_acc(testloader, net)
     confusion_matrix(testloader, net)
@@ -80,35 +77,20 @@ def confusion_matrix(loader, net):
             output = net(images)
             _, predicted = torch.max(output, 1)
             confusion_matrix.update(predicted, labels)
-    
+
     confusion_matrix = confusion_matrix.compute().cpu().numpy()
-    # fig_, ax_ = confusion_matrix.plot(labels=classes)
 
     plt.figure(figsize=(10, 8))
     sns.heatmap(confusion_matrix, annot=True, fmt='d', cmap='Reds', norm=LogNorm())
-
-    # Set x-axis and y-axis ticks with class names
-    plt.xticks(ticks=np.arange(num_classes) + 0.5, labels=classes, rotation=45)
-    plt.yticks(ticks=np.arange(num_classes) + 0.5, labels=classes, rotation=0)
-
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
     plt.title('Confusion Matrix')
-    if normalized:
-        plt.savefig(f'figures/conf_matrix/{num_classes}_{function}.png', dpi=200)
-    else:
-        plt.savefig(f'figures/no_norm/conf_matrix/{num_classes}_{function}.png', dpi=200)
+    plt.savefig(f'figures/conf_matrix/{num_classes}_{function}.png', dpi=200)
     plt.close()
 
 if __name__ == '__main__':
-    if normalized:
-        if train_all:
-            path = f'runs/{num_classes}_classes/best_{function}_net_checkpoint.pt'
-        else:
-            path = f'runs/{train_index}_classes/best_{function}_net_checkpoint.pt'
+    if train_all:
+        path = f'runs/{num_classes}_classes/best_{function}_net_checkpoint.pt'
     else:
-        if train_all:
-            path = f'runs/no_norm/{num_classes}_classes/best_{function}_net_checkpoint.pt'
-        else:
-            path = f'runs/no_norm/{train_index}_classes/best_{function}_net_checkpoint.pt'
+        path = f'runs/{train_index}_classes/best_{function}_net_checkpoint.pt'
     main()

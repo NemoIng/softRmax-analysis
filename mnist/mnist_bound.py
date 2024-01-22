@@ -6,12 +6,8 @@ import numpy as np
 from torch.autograd import Variable
 import torch.utils.data as td
 
-import torchvision.transforms as transforms
-import torchvision
-
-from dataset import prepare_dataset
-from network import Net
-
+from mnist_dataset import prepare_dataset
+from mnist_network import Net
 
 # When using apple silicon GPU:
 device = torch.device("mps")
@@ -21,7 +17,6 @@ device = torch.device("mps")
 
 # Network parameters
 kernel_size = 3
-conservative_a = 0.2
 
 # Deepview parameters
 batch_size = 128
@@ -31,7 +26,7 @@ min_dist = 0.5
 spread = 1.0
 lam = 0.8
 
-def plot_decision_boundary(net=None, num_classes=10, epoch=15, normalized=False, function='softRmax', n_samples=200, 
+def plot_decision_boundary(net=None, num_classes=10, epoch=5, function='softRmax', n_samples=200, 
                            data=None, fig_path=None, index=[3,7]):
     train_index = index
     test_index = index
@@ -45,25 +40,19 @@ def plot_decision_boundary(net=None, num_classes=10, epoch=15, normalized=False,
         classes = train_index
 
     if net == None:
-        if normalized:
-            if train_all:
-                path = f'runs/{num_classes}_classes/best_{function}_net_checkpoint.pt'
-            else:
-                path = f'runs/{train_index}_classes/best_{function}_net_checkpoint.pt'
+        if train_all:
+            path = f'runs/{num_classes}_classes/best_{function}_net_checkpoint.pt'
         else:
-            if train_all:
-                path = f'runs/no_norm/{num_classes}_classes/best_{function}_net_checkpoint.pt'
-            else:
-                path = f'runs/no_norm/{train_index}_classes/best_{function}_net_checkpoint.pt'
-        net = Net(device, num_classes, function, conservative_a, kernel_size).to(device)
+            path = f'runs/{train_index}_classes/best_{function}_net_checkpoint.pt'
+        net = Net(device, num_classes, function, kernel_size).to(device)
         net.load_state_dict(torch.load(path))
     else:
         net = net.to(device)
-    print(f'Loaded the {function}-{num_classes}-{normalized} network')
+    print(f'Loaded the {function}-{num_classes} network')
     net.eval()
 
     if data == None:
-        data = prepare_dataset(train_all, train_index, test_all, test_index, 'test', normalized)
+        data = prepare_dataset(train_all, train_index, test_all, test_index, 'test')
         sample_indices = np.arange(len(data))
         sample_ids = sample_indices[:n_samples]
         X = np.array([ data[i][0].numpy() for i in sample_ids ])
@@ -73,16 +62,10 @@ def plot_decision_boundary(net=None, num_classes=10, epoch=15, normalized=False,
         Y = data[1]
 
     if fig_path == None:
-        if normalized:
-            if train_all:
-                fig_path = f'figures/dec_bound/{function}/{epoch}_{n_samples}.png'
-            else:
-                fig_path = f'figures/dec_bound/{function}/{epoch}_{train_index}_{n_samples}.png'
+        if train_all:
+            fig_path = f'figures/dec_bound/{function}/{epoch}_{n_samples}.png'
         else:
-            if train_all:
-                fig_path = f'figures/no_norm/dec_bound/{function}/{epoch}_{n_samples}.png'
-            else:
-                fig_path = f'figures/no_norm/dec_bound/{function}/{epoch}_{train_index}_{n_samples}.png'
+            fig_path = f'figures/dec_bound/{function}/{epoch}_{train_index}_{n_samples}.png'
 
     def pred_wrapper(x):
         with torch.no_grad():
@@ -97,10 +80,7 @@ def plot_decision_boundary(net=None, num_classes=10, epoch=15, normalized=False,
 
     title = f'{function} - MNIST ({total_acc})'
     deepview = DeepView(pred_wrapper, classes, max_samples, batch_size, 
-                        data_shape, lam=lam, title=title, min_dist=min_dist, spread=spread, n=10)
-
-    # plt.imshow(X[0].transpose([1, 2, 0]))
-    # plt.show()
+                        data_shape, lam=lam, title=title, min_dist=min_dist, spread=spread)
 
     t0 = time.time()
     deepview.add_samples(X, Y)
@@ -146,11 +126,7 @@ def class_acc(loader, net, num_classes, classes):
                 class_correct[label] += c[i].item()
                 class_total[label] += 1
 
-    for i in range(num_classes):
-        print(f'Number of misclassified {classes[i]} samples: {int(class_total[i] - class_correct[i])}/{int(class_total[i])}')
-    
     total_accuracy = 100 * total_correct / total_samples
-    print(f'Total Accuracy: {round(total_accuracy, 2)}%')
     return total_accuracy
 
 if __name__ == '__main__':

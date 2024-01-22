@@ -12,33 +12,32 @@ from torch import optim
 from torch.autograd import Variable
 
 from utils import AverageMeter
-from network import Net
-from dataset import prepare_dataset
-from mnist_bound import plot_decision_boundary
+from mnist_network import Net
+from mnist_dataset import prepare_dataset
 
 # Network parameters
 function = 'softmax'
 kernel_size = 3
-conservative_a = 0.2
 
 # Data parameters
-normalized = True
-num_classes = 2
+num_classes = 10
 train_all = True
 train_index = [3,7]
 test_all = True
 test_index = [3,7]
 
 # Train-Test parameters
-num_epoch = 15
+num_epoch = 5
 num_tries = 1
-train_batch_size = 256
+train_batch_size = 32
 test_batch_size = 128
-lr = 1e-3
-weight_decay = 5e-6
 print_freq = 1
 
-plot_epochs = [1,2,5,10,15]
+# Learning rate 
+if function == 'softmax': lr = 5e-4
+else: lr = 1e-3
+
+classes = ('0', '1', '2', '3','4', '5', '6', '7', '8', '9')
 
 # When using apple silicon GPU:
 device = torch.device("mps")
@@ -47,25 +46,27 @@ device = torch.device("mps")
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def main():
-    trainset = prepare_dataset(train_all, train_index, test_all, test_index, 'train', normalized) 
-    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test', normalized) 
+    trainset = prepare_dataset(train_all, train_index, test_all, test_index, 'train') 
+    testset = prepare_dataset(train_all, train_index, test_all, test_index, 'test') 
         
     trainloader = td.DataLoader(trainset, batch_size=train_batch_size,
                                               shuffle=True, num_workers=1)   
     testloader = td.DataLoader(testset, batch_size=test_batch_size,
                                          shuffle=False, num_workers=1)
-    
     best_overall_acc = 0
     for i in range(num_tries):
         with open(path + f'mnist_{function}_test_accuracy.txt', 'a') as f:
             f.write(f'\nrun_nr: {i+1}/{num_tries}\n\n')
         # For each try we reinitialize the network
-        net = Net(device, num_classes, function, conservative_a, kernel_size).to(device)
-        criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
+        net = Net(device, num_classes, function, kernel_size).to(device)
+        if function == 'softRmax':
+            criterion = nn.NLLLoss()
+        else:   
+            criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(net.parameters(), lr=lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+
         best_net = net
-        best_curr_try_acc = 0
         for epoch in range(1, num_epoch + 1):
             train_acc = train(trainloader, net, criterion, optimizer, epoch)
             test_acc = test(testloader, net)   
@@ -74,15 +75,9 @@ def main():
                 f.write(f'[epoch {epoch}], train_accuracy: {train_acc:.5f}\n')
             with open(path + f'mnist_{function}_test_accuracy.txt', 'a') as f:
                 f.write(f'[epoch {epoch}], test_accuracy: {test_acc:.5f}\n')
-            if test_acc > best_curr_try_acc:
-                best_curr_try_acc = test_acc 
-                best_net = net
-            if epoch in plot_epochs:
-                plot_decision_boundary(net, num_classes, epoch, normalized, function, index=test_index)
-        if best_curr_try_acc > best_overall_acc:
-            best_overall_acc = best_curr_try_acc
-            torch.save(best_net.state_dict(), path + f'best_{function}_net_checkpoint.pt')
-    
+            if test_acc > best_overall_acc:
+                best_overall_acc = test_acc
+                torch.save(best_net.state_dict(), path + f'best_{function}_net_checkpoint.pt')
     return best_overall_acc
 
 def train(train_loader, net, criterion, optimizer, epoch):
@@ -100,7 +95,10 @@ def train(train_loader, net, criterion, optimizer, epoch):
 
         outputs = net(X)
         Acc_v = Acc_v + (outputs.argmax(1) - Y).nonzero().size(0)
-        loss = criterion(outputs, Y)
+        if function == 'softRmax':
+            loss = criterion(torch.log(outputs), Y)
+        else:
+            loss = criterion(outputs, Y)
 
         optimizer.zero_grad()
         loss.backward()
@@ -130,16 +128,10 @@ def test(test_loader, net):
     return test_acc
 
 if __name__ == '__main__':
-    if normalized:
-        if train_all:
-            path = f'runs/{num_classes}_classes'
-        else:
-            path = f'runs/{train_index}_classes'
+    if train_all:
+        path = f'runs/{num_classes}_classes'
     else:
-        if train_all:
-            path = f'runs/no_norm/{num_classes}_classes'
-        else:
-            path = f'runs/no_norm/{train_index}_classes'
+        path = f'runs/{train_index}_classes'
     if not os.path.exists(path):
         os.makedirs(path)
     path += '/'
@@ -153,8 +145,6 @@ if __name__ == '__main__':
             f.write(f'train_index: {train_index}\n') 
         f.write(f'num_epochs: {num_epoch}\n')
         f.write(f'learning_rate: {lr}\n')
-        f.write(f'weight_decay: {weight_decay}\n')
-        f.write(f'conservative_a: {conservative_a}\n')
         f.write(f'kernel_size: {kernel_size}\n')
 
     with open(path + f'mnist_{function}_test_accuracy.txt', 'a') as f:
@@ -170,9 +160,6 @@ if __name__ == '__main__':
         f.write(f'test_batch_size: {test_batch_size}\n')
         f.write(f'num_epochs: {num_epoch}\n')
         f.write(f'learning_rate: {lr}\n')
-
-        if function == "cons":
-            f.write(f'conservative_a: {conservative_a}\n')
 
     best_acc = main()
 
