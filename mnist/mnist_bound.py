@@ -114,6 +114,8 @@ def class_acc(loader, net, num_classes, classes):
         total_samples = 0
         for data in loader:
             images, labels = data
+            print(labels)
+
             images = Variable(images).to(device)
             labels = Variable(labels.squeeze()).to(device) 
             output = net(images)

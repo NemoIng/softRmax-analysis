@@ -34,8 +34,9 @@ class Net(nn.Module):
         self.function = function
         if function == 'softRmax':
             self.softmax = softRmax(num_classes, device)
-        elif function == 'softmax':
-            self.softmax = nn.Softmax(dim=1)
+            self.conservative = True
+        else:
+            self.conservative = False
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
@@ -45,4 +46,7 @@ class Net(nn.Module):
 
         x = x.view(-1, 64)
         x = self.fc1(x)
-        return self.softmax(x)
+
+        if self.conservative: 
+            return self.softmax(x)
+        return x

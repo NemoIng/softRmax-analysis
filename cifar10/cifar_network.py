@@ -28,10 +28,13 @@ class Net(nn.Module):
         self.function = function
         if function == 'softRmax':
             self.softmax = softRmax(num_classes, device)
-        elif function == 'softmax':
-            self.softmax = nn.Softmax(dim=1)
+            self.conservative = True
+        else:
+            self.conservative = False
 
     def forward(self, x):
         z = self.net(x)
-        x = self.softmax(z)
-        return x
+
+        if self.conservative: 
+            return self.softmax(z)
+        return z

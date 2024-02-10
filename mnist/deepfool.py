@@ -6,6 +6,12 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from torchvision.transforms import transforms
 
+"""
+Edited by NemoIng (Nemo ingendaa)
+
+Source:
+- https://github.com/ewatson2/EEL6812_DeepFool_Project/tree/main
+"""
 
 def get_clip_bounds(mean, std, dim):
     """
@@ -41,8 +47,8 @@ def get_clip_bounds(mean, std, dim):
     return clip_min, clip_max
 
 
-def deepfool(model, clip_min, clip_max, images, labels=None, l2_norm=True,
-             batch_size=10, num_classes=10, overshoot=0.02, max_iters=50):
+def deepfool(model, clip_min, clip_max, images, device, conservative, labels=None, l2_norm=True,
+             batch_size=10, num_classes=10, overshoot=0.02, max_iters=30):
     """
     Function implements the DeepFool adversarial attack from the paper
     'DeepFool: a simple and accurate method to fool deep neural networks'
@@ -78,14 +84,18 @@ def deepfool(model, clip_min, clip_max, images, labels=None, l2_norm=True,
         labels_adv  : Model predictions of the adversarial images
         iters       : Total iterations it took for each adversarial image
     """
-    
+    clip_min = clip_min.to(device)
+    clip_max = clip_max.to(device)
+    if labels != None:
+        num_images = len(labels)
+    else:
+        num_images = len(images)
+        
     images_adv = []
     images_pert = []
     confs_adv = []
     labels_adv = []
     iters = []
-    
-    device = images.get_device()
     
     # Create a tensor with all class labels
     # and split the tensor into batches
@@ -100,9 +110,9 @@ def deepfool(model, clip_min, clip_max, images, labels=None, l2_norm=True,
     # Use the negative log likelihood loss function without the
     # following softmax activation, as recommended in the paper
     loss_fn = nn.NLLLoss(reduction='sum')
-    
+
     # Generate the adversarial image for each input image
-    for i in range(len(images)):
+    for i in range(num_images):
         # Use a batch size of 1 for the input image and
         # intialize the perturbation with values of zero
         image = images[i].unsqueeze(dim=0).detach()
@@ -115,13 +125,13 @@ def deepfool(model, clip_min, clip_max, images, labels=None, l2_norm=True,
         x_batch.requires_grad = True
         x_batch_last = x.repeat(batch_size_last, 1, 1, 1)
         x_batch_last.requires_grad = True
-        
+
         # Get the model logit values of the image and
         # get the max confidence and predicted label
-        f_k = model(x_batch)
+        f_k = model(x)
         conf_i, k_i = f_k[0].max(dim=0)
         conf_i = conf_i.detach()
-        
+
         # Create a list with labels not equal to the predicted label if
         # the true label is not known, or the true label if its known
         if labels is None:
@@ -129,11 +139,10 @@ def deepfool(model, clip_min, clip_max, images, labels=None, l2_norm=True,
         else:
             k_0 = labels[i]
         k_wrong = k_all[k_all != k_0]
-        
+
         # Set the flag as true if the label 'k_0' is outside the tensor
         # containing the class indices with the range of 'num_classes'
         out_of_bounds = (False if (k_0 in k_all) else True)
-        
         # Loop until max iterations are reached or if the
         # adversarial image causes the model to misclassify
         for j in range(max_iters):
@@ -202,10 +211,14 @@ def deepfool(model, clip_min, clip_max, images, labels=None, l2_norm=True,
             
             # Get the model logit values of the aversarial image
             # and get the max confidence and predicted label
-            f_k = model(x_batch)
-            conf_i, k_i = f_k[0].max(dim=0)
+            if conservative:
+                f_k = model(x_batch)
+                conf_i, k_i = f_k[0].max(dim=0)
+            else:
+                softmax = nn.Softmax(dim=1)
+                f_k = softmax(model(x_batch))
+                conf_i, k_i = f_k[0].max(dim=0)
             conf_i = conf_i.detach()
-            
             del w_k0, w_k, w_p, f_p
             del perts, l_hat, r_i
         
@@ -214,10 +227,10 @@ def deepfool(model, clip_min, clip_max, images, labels=None, l2_norm=True,
         confs_adv.append(conf_i.unsqueeze(dim=0))
         labels_adv.append(k_i.unsqueeze(dim=0))
         iters.append(j)
-        
+    
         del image, r_hat, x, x_batch, x_batch_last
         del f_k, conf_i, k_i, k_0, k_wrong
-    
+
     images_adv = torch.cat(images_adv)
     images_pert = torch.cat(images_pert)
     confs_adv = torch.cat(confs_adv)
@@ -228,7 +241,7 @@ def deepfool(model, clip_min, clip_max, images, labels=None, l2_norm=True,
     return images_adv, images_pert, confs_adv, labels_adv, iters
 
 
-def fgsm(model, clip_min, clip_max, images, labels, eps=0.007):
+def fgsm(model, clip_min, clip_max, images, labels, eps=0.007, conservative=False):
     """
     Function implements the FGSM adversarial attack from the paper
     'Explaining and Harnessing Adversarial Examples'
@@ -253,12 +266,15 @@ def fgsm(model, clip_min, clip_max, images, labels, eps=0.007):
     images_grad = images.detach()
     images_grad.requires_grad = True
     
-    loss_fn = nn.CrossEntropyLoss()
-    
     # Compute the loss of the model outputs and perform
     # backpropagation to compute the gradients of the images
     outputs = model(images_grad)
-    loss_fn(outputs, labels).backward()
+    if conservative == True:
+        loss_func = nn.NLLLoss()
+        loss_func(torch.log(outputs), labels).backward()
+    else:
+        loss_func = nn.CrossEntropyLoss()
+        loss_func(outputs, labels).backward()
     
     # Project the scaled gradient over the input images and clamp
     # the adversarial images using the minimum and maximum bounds
@@ -269,7 +285,13 @@ def fgsm(model, clip_min, clip_max, images, labels, eps=0.007):
     # Get the confidences and predictions of the adversarial images
     with torch.no_grad():
         outputs = model(images_adv)
-    confs_adv, labels_adv = outputs.max(dim=1)
+    
+    softmax = nn.Softmax()
+    if conservative:
+        confs_adv, labels_adv = model(images).max(dim=1)
+    else:
+        softmax = nn.Softmax(dim=1)
+        confs_adv, labels_adv = softmax(model(images)).max(dim=1)
     
     del images_grad, outputs
     
@@ -410,7 +432,7 @@ def evaluate_attack(file_name, file_dir, device, model, dataset_loader,
 
 
 def display_attack(device, model, test_dataset, inv_tf, clip_min, clip_max,
-                   fgsm_eps, deep_args, has_labels=False, l2_norm=True,
+                   fgsm_eps, deep_args, conservative, has_labels=False, l2_norm=True,
                    pert_scale=1.0, fig_rows=2, fig_width=25, fig_height=11,
                    label_map=None):
     """
@@ -448,16 +470,17 @@ def display_attack(device, model, test_dataset, inv_tf, clip_min, clip_max,
     Output Variables:
         None
     """
+    clip_min, clip_max = clip_min.to(device), clip_max.to(device)
     
     model.eval()
     
     fig = plt.figure(figsize=(fig_width, fig_height), facecolor='white')
     
-    test_loader = DataLoader(test_dataset, batch_size=fig_rows,
-                             shuffle=True, num_workers=4)
-    
+    test_loader = DataLoader(test_dataset, batch_size=10,
+                             shuffle=False, num_workers=4)
+
     images, labels = next(iter(test_loader))
-    images, labels = images.to(device), labels.to(device)
+    images, labels = images[2:4].to(device), labels[2:4].to(device)
     
     if images.shape[1] == 1:
         is_gray = True
@@ -465,18 +488,22 @@ def display_attack(device, model, test_dataset, inv_tf, clip_min, clip_max,
         is_gray = False
     
     with torch.no_grad():
-        confs_pred, labels_pred = model(images).max(dim=1)
+        if conservative:
+            confs_pred, labels_pred = model(images).max(dim=1)
+        else:
+            softmax = nn.Softmax(dim=1)
+            confs_pred, labels_pred = softmax(model(images)).max(dim=1)
     
     advs_fgsm, perts_fgsm, confs_fgsm, labels_fgsm = fgsm(
-        model, clip_min, clip_max, images, labels, fgsm_eps)
+        model, clip_min, clip_max, images, labels, fgsm_eps, conservative)
     
     if has_labels:
         advs_deep, perts_deep, confs_deep, labels_deep, iters_deep = deepfool(
-            model, clip_min, clip_max, images, labels, l2_norm,
+            model, clip_min, clip_max, images, device, conservative, labels, l2_norm,
             deep_args[0], deep_args[1], deep_args[2], deep_args[3])
     else:
         advs_deep, perts_deep, confs_deep, labels_deep, iters_deep = deepfool(
-            model, clip_min, clip_max, images, None, l2_norm,
+             model, clip_min, clip_max, images, device, conservative, None, l2_norm,
             deep_args[0], deep_args[1], deep_args[2], deep_args[3])
     
     p_adv_fgsm = compute_robustness(images, perts_fgsm)

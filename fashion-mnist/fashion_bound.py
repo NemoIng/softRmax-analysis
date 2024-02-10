@@ -6,8 +6,8 @@ import numpy as np
 from torch.autograd import Variable
 import torch.utils.data as td
 
-from dataset import prepare_dataset
-from network import Net
+from fashion_dataset import prepare_dataset
+from fashion_network import Net
 
 # When using apple silicon GPU:
 device = torch.device("mps")

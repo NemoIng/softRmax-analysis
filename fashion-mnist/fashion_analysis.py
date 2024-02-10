@@ -5,11 +5,11 @@ from matplotlib import pyplot as plt
 from torchmetrics.classification import MulticlassConfusionMatrix
 import seaborn as sns
 
-from dataset import prepare_dataset
-from network import Net
+from fashion_dataset import prepare_dataset
+from fashion_network import Net
 
 # Network parameters
-function = 'softmax'
+function = 'softRmax'
 
 # Data parameters
 num_classes = 10

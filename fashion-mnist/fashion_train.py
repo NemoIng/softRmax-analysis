@@ -12,8 +12,8 @@ from torch import optim
 from torch.autograd import Variable
 
 from utils import AverageMeter
-from network import Net
-from dataset import prepare_dataset
+from fashion_network import Net
+from fashion_dataset import prepare_dataset
 from fashion_bound import plot_decision_boundary
 
 # Network parameters
