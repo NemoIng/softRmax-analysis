@@ -470,6 +470,7 @@ def display_attack(device, model, test_dataset, inv_tf, clip_min, clip_max,
     Output Variables:
         None
     """
+    clip_min, clip_max = clip_min.to(device), clip_max.to(device)
     
     model.eval()
     
@@ -502,7 +503,7 @@ def display_attack(device, model, test_dataset, inv_tf, clip_min, clip_max,
             deep_args[0], deep_args[1], deep_args[2], deep_args[3])
     else:
         advs_deep, perts_deep, confs_deep, labels_deep, iters_deep = deepfool(
-            model, clip_min, clip_max, images, device, conservative, None, l2_norm,
+             model, clip_min, clip_max, images, device, conservative, None, l2_norm,
             deep_args[0], deep_args[1], deep_args[2], deep_args[3])
     
     p_adv_fgsm = compute_robustness(images, perts_fgsm)

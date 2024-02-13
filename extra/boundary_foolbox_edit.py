@@ -1,12 +1,3 @@
-"""
-Edited version of foolbox's boundary attack implementation.
-Replace the code in your foolbox libary with this one.
-
-Changes are:
-- Keeping track of the number of steps it takes to converge
-- Normal version had some issues with MNIST-softRmax, this version fixes those by removing some checks
-"""
-
 from typing import Union, Tuple, Optional, Any
 from typing_extensions import Literal
 import numpy as np
@@ -164,7 +155,7 @@ class BoundaryAttack(MinimizationAttack):
                         num_converged_samples += 1
             if step % 5000 == 0: 
                 print(step)
-                print(f'converged: {num_converged_samples} / {N})')
+                print(f'converged: ({num_converged_samples} / {N})')
 
             if converged.all():
                 break  # pragma: no cover
