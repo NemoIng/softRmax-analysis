@@ -16,14 +16,14 @@ from mnist_network import Net
 from mnist_dataset import prepare_dataset
 
 # Network parameters
-function = 'softmax'
+function = 'cons'
 kernel_size = 3
 
 # Data parameters
-num_classes = 10
-train_all = True
+num_classes = 2
+train_all = False
 train_index = [3,7]
-test_all = True
+test_all = False
 test_index = [3,7]
 
 # Train-Test parameters
@@ -34,8 +34,7 @@ test_batch_size = 128
 print_freq = 1
 
 # Learning rate 
-if function == 'softmax': lr = 5e-4
-else: lr = 1e-3
+lr = 1e-3
 
 classes = ('0', '1', '2', '3','4', '5', '6', '7', '8', '9')
 
@@ -59,7 +58,7 @@ def main():
             f.write(f'\nrun_nr: {i+1}/{num_tries}\n\n')
         # For each try we reinitialize the network
         net = Net(device, num_classes, function, kernel_size).to(device)
-        if function == 'softRmax':
+        if function == 'softRmax' or function == 'cons':
             criterion = nn.NLLLoss()
         else:   
             criterion = nn.CrossEntropyLoss()
@@ -85,7 +84,6 @@ def train(train_loader, net, criterion, optimizer, epoch):
     train_loss = AverageMeter()
     Acc_v = 0
     nb = 0
-
     for data in train_loader:
         X, Y = data 
         X = Variable(X).to(device)
@@ -95,7 +93,7 @@ def train(train_loader, net, criterion, optimizer, epoch):
 
         outputs = net(X)
         Acc_v = Acc_v + (outputs.argmax(1) - Y).nonzero().size(0)
-        if function == 'softRmax':
+        if function == 'softRmax' or function == 'cons':
             loss = criterion(torch.log(outputs), Y)
         else:
             loss = criterion(outputs, Y)
@@ -107,7 +105,6 @@ def train(train_loader, net, criterion, optimizer, epoch):
         train_loss.update(loss.data.item(), N)     
 
     print(f'[epoch {epoch}], [train loss {train_loss.avg:.5f}]')
-
     train_acc = (nb - Acc_v) / nb
     return train_acc
 

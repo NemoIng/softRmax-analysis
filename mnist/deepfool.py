@@ -48,7 +48,7 @@ def get_clip_bounds(mean, std, dim):
 
 
 def deepfool(model, clip_min, clip_max, images, device, conservative, labels=None, l2_norm=True,
-             batch_size=10, num_classes=10, overshoot=0.02, max_iters=30):
+             batch_size=10, num_classes=10, overshoot=0.02, max_iters=50):
     """
     Function implements the DeepFool adversarial attack from the paper
     'DeepFool: a simple and accurate method to fool deep neural networks'
@@ -221,7 +221,7 @@ def deepfool(model, clip_min, clip_max, images, device, conservative, labels=Non
             conf_i = conf_i.detach()
             del w_k0, w_k, w_p, f_p
             del perts, l_hat, r_i
-        
+
         images_adv.append(x)
         images_pert.append(x - image)
         confs_adv.append(conf_i.unsqueeze(dim=0))
@@ -230,12 +230,12 @@ def deepfool(model, clip_min, clip_max, images, device, conservative, labels=Non
     
         del image, r_hat, x, x_batch, x_batch_last
         del f_k, conf_i, k_i, k_0, k_wrong
-
+    
     images_adv = torch.cat(images_adv)
     images_pert = torch.cat(images_pert)
     confs_adv = torch.cat(confs_adv)
     labels_adv = torch.cat(labels_adv)
-    
+
     del k_all, k_batch
     
     return images_adv, images_pert, confs_adv, labels_adv, iters

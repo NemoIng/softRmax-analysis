@@ -9,7 +9,7 @@ from fashion_dataset import prepare_dataset
 from fashion_network import Net
 
 # Network parameters
-function = 'softRmax'
+function = 'cons'
 
 # Data parameters
 num_classes = 10
@@ -37,6 +37,7 @@ def main():
     
     net = Net(device, num_classes, function)
     net.load_state_dict(torch.load(path))
+    net.eval()
     print(f'Loaded the {function} network')
 
     class_acc(testloader, net)

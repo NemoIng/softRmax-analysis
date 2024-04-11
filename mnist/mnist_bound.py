@@ -26,7 +26,7 @@ min_dist = 0.5
 spread = 1.0
 lam = 0.8
 
-def plot_decision_boundary(net=None, num_classes=10, epoch=5, function='softRmax', n_samples=200, 
+def plot_decision_boundary(net=None, num_classes=10, epoch=10, function='softmax', n_samples=200, 
                            data=None, fig_path=None, index=[3,7]):
     train_index = index
     test_index = index
@@ -71,7 +71,11 @@ def plot_decision_boundary(net=None, num_classes=10, epoch=5, function='softRmax
         with torch.no_grad():
             x = np.array(x, dtype=np.float32)
             tensor = torch.from_numpy(x).to(device)
-            probabilities = net(tensor).cpu().numpy()
+            if function == 'softmax':
+                softmax = torch.nn.Softmax(dim=1)
+                probabilities = softmax(net(tensor)).cpu().numpy()
+            else: 
+                probabilities = net(tensor).cpu().numpy()
         return probabilities
     
     test_data = td.TensorDataset(torch.tensor(X), torch.tensor(Y))
@@ -80,7 +84,7 @@ def plot_decision_boundary(net=None, num_classes=10, epoch=5, function='softRmax
 
     title = f'{function} - MNIST ({total_acc})'
     deepview = DeepView(pred_wrapper, classes, max_samples, batch_size, 
-                        data_shape, lam=lam, title=title, min_dist=min_dist, spread=spread)
+                    data_shape, lam=lam, title=title, min_dist=min_dist, spread=spread, n=10)
 
     t0 = time.time()
     deepview.add_samples(X, Y)
@@ -114,7 +118,6 @@ def class_acc(loader, net, num_classes, classes):
         total_samples = 0
         for data in loader:
             images, labels = data
-            print(labels)
 
             images = Variable(images).to(device)
             labels = Variable(labels.squeeze()).to(device) 

@@ -26,30 +26,34 @@ from fashion_network import Net
 from deepfool import get_clip_bounds, deepfool, display_attack, compute_robustness
 
 # All attack parameters
-test_function = 'softmax'
-attack_type = 'deepfool'
+test_function = 'softRmax'
+attack_type = 'fgsm-target'
 if attack_type == 'average':
-    testing_eps = [0.8]
+    testing_eps = [0.3]
     plot_eps = []
     test_batch_size = 400
 elif attack_type == 'bim':
-    testing_eps = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+    testing_eps = [0.0, 0.3]
     plot_eps = [0.1, 0.3]
     test_batch_size = 400
 elif attack_type == 'fgsm':
-    testing_eps = [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
+    testing_eps = [0.0, 0.3]
     plot_eps = [0.1, 0.3]
     test_batch_size = 400
+elif attack_type == 'fgsm-target':
+    testing_eps = [0.3]
+    plot_eps = []
+    test_batch_size = 512
 elif attack_type == 'deepfool':
     testing_eps = []
     plot_eps = []
-    max_num_images = 500
+    max_num_images = 10000
     test_batch_size = max_num_images
 elif attack_type == 'boundary':
     testing_eps = []
     plot_eps = []
-    test_batch_size = 30
-    max_num_images = 30
+    max_num_images = 500
+    test_batch_size = max_num_images
 else:
     print('attack doesnt exist')
     sys.exit(0)
@@ -57,13 +61,8 @@ class_to_plot = 'Shirt'
 dec_bound = False # plot decision boundary yes/no
 plot_image_comparison = True # plot comparison between og and adv image
 
-# Average attack parameters
-adv_class = 'Shirt'
-if attack_type == 'average':
-    class_to_plot = adv_class
-
 # FGSM/BIM attack parameters
-adv_function = 'softRmax' # function for which the adverarial examples will created
+adv_function = 'cons' # function for which the adverarial examples will created
 bim_iters = 10 # number of fgsm steps for BIM
 
 # DeepFool variables
@@ -101,26 +100,32 @@ def main():
     testloader = td.DataLoader(testset, batch_size=test_batch_size, shuffle=False, num_workers=1)
 
     if attack_type == 'average':
-        accuracies = []
         net = Net(device2, num_classes, test_function).to(device2)
         net.load_state_dict(torch.load(path2))
         net.eval()
+        acc = []
         print(f'Loaded the {test_function}-{num_classes} network (testing)')
-        for i in range(num_classes):
-            if i == classes.index(adv_class):
-                continue
+        for adv in range(num_classes):
+            accuracies = []
+            for target in range(num_classes):
+                if target == adv:
+                    continue
 
-            adv_data = create_data(net, testloader, testing_eps, i)
-            for j, eps in enumerate(testing_eps):
-                acc, classes_acc = test_model_accuracy(net, adv_data[j], eps, target_class=i)
-                accuracies.append(classes_acc[classes.index(adv_class)])
-        print(f'Average accuracy for class {adv_class}: {round(100 * sum(accuracies) / (num_classes-1), 2)}%')
+                adv_data = create_data(net, testloader, testing_eps, target, adv)
+                for i, eps in enumerate(testing_eps):
+                    _, classes_acc = test_model_accuracy(net, adv_data[i], eps, target, adv)
+                    accuracies.append(classes_acc[adv])
+            acc.append(round(100 * sum(accuracies) / (num_classes-1), 2))
+            print(f'Average accuracy for class {adv}: {round(100 * sum(accuracies) / (num_classes-1), 2)}%')
+        for i in range(num_classes): 
+            print(f'{acc[i]}%')
        
     elif attack_type == 'boundary':
         accuracies = []
         net = Net(device2, num_classes, test_function).to(device2)
         net.load_state_dict(torch.load(path2))
         net.eval()
+
         preprocessing = dict(mean=0.2860, std=0.3205)
         net = PyTorchModel(net, (0,1), device2, preprocessing)
         print(f'Loaded the {test_function}-{num_classes} network (testing)')
@@ -129,7 +134,9 @@ def main():
         test_model_accuracy(net, adv_data, 0)
 
     elif attack_type == 'deepfool':
-        net = Net(device, num_classes, test_function).to(device)
+        # We input 'softmax' as the testfunction because than softRmax is not used before output
+        # deepfool only works well without the final layer activation function
+        net = Net(device, num_classes, 'softmax').to(device)
         net.load_state_dict(torch.load(path2))
         net.eval()
         print(f'Loaded the {test_function}-{num_classes} network (testing/creation)')
@@ -144,6 +151,34 @@ def main():
         net.eval()
 
         test_model_accuracy(net, adv_data, 0)
+
+    elif attack_type == 'fgsm-target':
+        if test_function != adv_function:
+            print(f'black box testing {test_function} with cons network loss')
+        else:
+            print(f'white box testing {test_function}')
+
+        net = Net(device, num_classes, adv_function).to(device)
+        net.load_state_dict(torch.load(path))
+        net.eval()
+
+        net2 = Net(device2, num_classes, test_function).to(device2)
+        net2.load_state_dict(torch.load(path2))
+        net2.eval()
+
+        accuracies = [0 for i in range(num_classes)]
+
+        for target in range(num_classes):
+            adv_data = create_data(net, testloader, testing_eps, target)
+            _, classes_acc = test_model_accuracy(net2, adv_data[0], testing_eps[0], target)
+
+            for i in range(num_classes):
+                if i != target:
+                    accuracies[i] += classes_acc[i]
+
+        for i in range(num_classes):
+            avg_acc = round(100 * accuracies[i] / (num_classes-1), 2)
+            print(f'{avg_acc}%')
 
     else:
         net = Net(device, num_classes, adv_function).to(device)
@@ -169,20 +204,21 @@ def main():
         plot_acc_graph(acc_per_eps, testing_eps)
         plot_acc_class_per_eps(acc_class_per_eps, testing_eps)
 
-def create_data(net, testloader, testing_eps, target_class=0):
+def create_data(net, testloader, testing_eps, target_class=None, adv_class=None):
     data = []
     if attack_type == 'deepfool' or attack_type == 'boundary':
-        iterations = 0
+        if attack_type == 'deepfool':
+            dev = torch.device('mps')
+        else:
+            dev = torch.device('cpu')
         num_imgs = 0
         robustness1 = []
         robustness2 = []
-        correctly_predicted_images = []
         start = time.time()
         for images, labels in testloader:
             correctly_predicted_images = []
-            if attack_type == 'deepfool': 
-                images = images.clone().detach().to(device)
-                labels = labels.clone().detach().to(device)
+            images = images.clone().detach().to(dev)
+            labels = labels.clone().detach().to(dev)
                 
             _, predicted_labels = torch.max(net(images), 1)
             for i in range(len(images)):
@@ -190,65 +226,78 @@ def create_data(net, testloader, testing_eps, target_class=0):
                     correctly_predicted_images.append(images[i].clone().detach())
             new_images = torch.stack(correctly_predicted_images)
             _, new_labels = torch.max(net(new_images), 1)
+            num_imgs = len(new_images)
+            print(f"Number of images: {num_imgs}")  
 
-            if num_imgs >= max_num_images: break
-
-            print(f"Number of images: {len(new_images)}")
             if attack_type == 'deepfool':
-                images, adv_images, noise, iterations, robust1, robust2 = deepfool_attack(net, new_images, new_labels, iterations)
+                adv_images, noise, iterations, robust1, robust2 = deepfool_attack(net, new_images, new_labels)
             else:
                 adv_images, noise, robust1, robust2 = boundary_attack(net, new_images, new_labels)
-            num_imgs += test_batch_size
+                
             robustness1.append(robust1)
-            robustness2.append(robust2.to(device2))
+            robustness2.append(np.mean([robust2.to(device2)]))
             data.append((new_images, adv_images, new_labels, noise))
+            
+            break
 
         end = time.time()
-        if attack_type == 'deepfool':
-            print(f'Average iterations per image: {round(iterations / num_imgs, 3)}') 
+        print(f'Average iterations per image: {round(iterations / num_imgs, 3)}') 
         print(f'Average robustness per image: {round(float(np.mean(robustness1)), 5)} (deepfool method)')
         print(f'Average robustness per image: {round(float(np.mean(robustness2)), 7)} (squared error)')
         print(f'Average time spend per image: {round((end - start) / num_imgs, 3)} sec')
     else:
         for eps in testing_eps:
-            print(f'\nCreating adversarial ({attack_type}) data for eps: {eps}')
             adversarial_data = []
             for images, labels in testloader:
                 if eps == 0:
                     adversarial_data.append((images, images, labels, None))
-                elif attack_type == 'fgsm':
-                    adv_images, noise = fgsm_attack(net, images, labels, eps)
+                elif attack_type == 'fgsm' or attack_type == 'fgsm-target':
+                    adv_images, noise = fgsm_attack(net, images, labels, eps, target_class)
                     adversarial_data.append((images, adv_images, labels, noise))
                 elif attack_type == 'bim':
                     adv_images, noise = bim_attack(net, images, labels, eps)
                     adversarial_data.append((images, adv_images, labels, noise))
                 else: 
-                    images, adv_images, noise, labels = average_attack(images, labels, eps, target_class)
+                    images, adv_images, noise, labels = average_attack(images, labels, eps, target_class, adv_class)
                     adversarial_data.append((images, adv_images, labels, noise))
 
             data.append(adversarial_data)
     return data
 
-def fgsm_attack(net, images, labels, eps) :
+def fgsm_attack(net, images, labels, eps, target_class) :
     images = images.clone().detach().to(device)
     labels = labels.clone().detach().to(device)
     images.requires_grad = True
             
     outputs = net(images)
     net.zero_grad()
-    if adv_function == 'softmax':
-        loss_func = nn.CrossEntropyLoss()
-        loss = loss_func(outputs, labels)
+
+    if target_class == None:
+        if adv_function == 'softRmax' or adv_function == 'cons':
+            loss_func = nn.NLLLoss()
+            loss = loss_func(torch.log(outputs), labels)
+        else:
+            loss_func = nn.CrossEntropyLoss()
+            loss = loss_func(outputs, labels)
     else:
-        loss_func = nn.NLLLoss()
-        loss = loss_func(torch.log(outputs), labels)
+        if adv_function == 'softRmax' or adv_function == 'cons':
+            loss_func = nn.NLLLoss()
+            loss = loss_func(torch.log(outputs), 
+                    torch.tensor([target_class for i in range(len(outputs))], dtype=torch.long).to(device))
+        else:
+            loss_func = nn.CrossEntropyLoss()
+            loss = loss_func(outputs, 
+                    torch.tensor([target_class for i in range(len(outputs))], dtype=torch.long).to(device))
 
     loss.backward()
     data_grad = images.grad.data
 
     noise = eps*data_grad.sign()
-    attack_images = images + noise
-
+    if target_class == None:
+        attack_images = images + noise
+    else: 
+        attack_images = images - noise
+    
     noise = noise.clamp(0, 1).cpu().detach().numpy()
     return attack_images, noise
 
@@ -277,13 +326,13 @@ def bim_attack(net, images, labels, eps):
         b = (attack_images>=a).float()*attack_images + (a>attack_images).float()*a
         c = (b > attack_images+eps).float()*(attack_images+eps) + (attack_images+eps >= b).float()*b
 
-        images = torch.clamp(c, max=255).detach()
+        images = torch.clamp(c, data_min.to(device), data_max.to(device)).detach()
 
     noise = torch.clamp(images - org_images, 0, 1)
     noise = noise.cpu().detach().numpy()
     return images, noise
 
-def average_attack(images, labels, eps, target_class):
+def average_attack(images, labels, eps, target_class, adv_class):
     target_class_images = []
     adv_class_images = []
     target_labels = []
@@ -293,7 +342,7 @@ def average_attack(images, labels, eps, target_class):
         if lab == target_class:
             target_class_images.append(img)
             target_labels.append(lab)
-        if lab == classes.index(adv_class):
+        if lab == adv_class:
             adv_class_images.append(img)
             adv_labels.append(lab)
 
@@ -313,17 +362,16 @@ def average_attack(images, labels, eps, target_class):
     attack_images = adv_class_images + noise
     return adv_class_images, attack_images, noise, adv_labels
 
-def deepfool_attack(net, images, labels, iterations):
+def deepfool_attack(net, images, labels):
     images = images.clone().detach().to(device)
     labels = labels.clone().detach().to(device)
     if test_function == "softmax":
         attack_images, noise, _, _, iters = deepfool(net, data_min, data_max, images, device, False, labels)
     else:
         attack_images, noise, _, _, iters = deepfool(net, data_min, data_max, images, device, True, labels)
-    iterations += sum(iters)
     robustness1 = compute_robustness(images, noise)
-    robustness2 = (attack_images - images) ** 2
-    return images, attack_images, noise, iterations, np.mean(robustness1), robustness2
+    robustness2 = (images - attack_images) ** 2
+    return attack_images, noise, sum(iters), np.mean(robustness1), robustness2, images, labels
 
 def deepfool_vs_fgsm_visualize(net, testset, eps):
     args = [128, 10, 0.02, 50]
@@ -333,8 +381,6 @@ def deepfool_vs_fgsm_visualize(net, testset, eps):
         display_attack(device, net, testset, denormalize, data_min, data_max, eps, args, True, label_map=classes)
 
 def boundary_attack(net, images, labels):
-    images = images.clone().detach().to(device2)
-    labels = labels.clone().detach().to(device2)
     attack = BoundaryAttack(steps=100000)
     attack_images = attack.run(net, images, labels)
 
@@ -343,14 +389,10 @@ def boundary_attack(net, images, labels):
     robustness2 = (attack_images - images) ** 2
     return attack_images, torch.clamp(noise, 0, 1), np.mean(robustness1), robustness2
 
-def test_model_accuracy(net, adv_data, eps, target_class=0):
-    if not train_all:
-        class_label = train_index.index(classes.index(class_to_plot))        
-    else:
-        class_label = classes.index(class_to_plot)
-    printed = False
+def test_model_accuracy(net, adv_data, eps, target_class=None, adv_class=None):
     acc = 0
     nb = 0
+    printed = [False for i in range(num_classes)]
     class_correct = [0.0 for _ in range(num_classes)]
     class_total = [0.0 for _ in range(num_classes)]
 
@@ -359,20 +401,22 @@ def test_model_accuracy(net, adv_data, eps, target_class=0):
         attack_images = attack_images.to(device2)
         labels = labels.to(device2)
         _, predicted_labels = torch.max(net(attack_images), 1)
+
         if plot_image_comparison:
             if attack_type == 'deepfool' or attack_type == 'boundary':
                 for i, label in enumerate(labels.cpu().detach().numpy()):
-                    if predicted_labels[i] != label:
+                    if not printed[label] and predicted_labels[i] != label:
                         plot_attack(images[i], attack_images[i], noise[i], eps, label, predicted_labels[i])
-            if not printed and eps != 0:
-                for i, label in enumerate(labels.cpu().detach().numpy()):
-                    if label == class_label and predicted_labels[i] != label:
-                        if attack_type == "average":
-                            plot_attack(images[i], attack_images[i], noise[0], eps, label, predicted_labels[i], target_class)
-                        else:
-                            plot_attack(images[i], attack_images[i], noise[i,0], eps, label, predicted_labels[i])
-                        printed = True
-                        break
+                        printed[label] = True
+            else:
+                if eps != 0:
+                    for i, label in enumerate(labels.cpu().detach().numpy()):
+                        if not printed[label] and predicted_labels[i] != label:
+                            if attack_type == "average":
+                                plot_attack(images[i], attack_images[i], noise[0], eps, label, predicted_labels[i], target_class, adv_class)
+                            else:
+                                plot_attack(images[i], attack_images[i], noise[i,0], eps, label, predicted_labels[i], target_class)
+                            printed[label] = True
 
         nb = nb + len(attack_images)
         acc = acc + (predicted_labels - labels).nonzero().size(0)
@@ -395,11 +439,8 @@ def create_path(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
-def plot_attack(org_image, adv_image, noise, eps, label, pred_label, target_class=0):
+def plot_attack(org_image, adv_image, noise, eps, label, pred_label, target_class=None, adv_class=None):
     # Denormalize the images before plotting
-    denormalize = transforms.Compose([
-        transforms.Normalize(mean=[-0.2860/0.3205], std=[1/0.3205])
-    ])
     org_image = denormalize(org_image).detach().numpy()
     adv_image = denormalize(adv_image).detach().numpy()
     
@@ -410,17 +451,20 @@ def plot_attack(org_image, adv_image, noise, eps, label, pred_label, target_clas
         create_path(fig_path)
         fig_path += f'/{classes[label]}.png'
     elif attack_type == "average":   
-        attack = f"{num_classes}_{adv_class}"
+        attack = f"{num_classes}_{classes[adv_class]}"
         fig_path = f'figures/{attack_type}/{attack}'
         create_path(fig_path)
-        fig_path += f'/{eps}_{classes[label]}_to_{classes[target_class]}.png'
+        fig_path += f'/{eps}_{classes[adv_class]}_to_{classes[target_class]}.png'
     else:
         attack = f"{num_classes}_{adv_function}_{test_function}"
         fig_path = f'figures/{attack_type}/{attack}'
         create_path(fig_path)
-        fig_path += f'/{eps}_{classes[label]}.png'
+        if target_class == None:
+            fig_path += f'/{eps}_{classes[label]}.png'
+        else:
+            fig_path += f'/{eps}_{classes[label]}_to_{classes[target_class]}.png'
+    
     plt.figure(figsize=(15, 5))
-
     plt.subplot(1, 3, 1)
     plt.imshow(org_image.transpose(1, 2, 0), cmap='gray')
     plt.title(f"Original Image ({classes[label]})")
@@ -439,14 +483,14 @@ def plot_attack(org_image, adv_image, noise, eps, label, pred_label, target_clas
     plt.savefig(fig_path, dpi=200)
     plt.close()
 
-def plot_acc_graph(acc_per_eps, testing_eps):
+def plot_acc_graph(acc_per_eps, testing_eps, adv_class=None):
     plt.figure(figsize=(8,5))
     plt.plot(testing_eps, acc_per_eps, '*-')
     plt.yticks(np.arange(0, 1.1, step=0.1))
     step = testing_eps[1] - testing_eps[0]
     plt.xticks(np.arange(0, max(testing_eps)+step, step=step))
     if attack_type == "average":
-        plt.title(f"Accuracy vs Epsilon, {adv_class} class")
+        plt.title(f"Accuracy vs Epsilon, {classes[adv_class]} class")
     else:
         plt.title("Accuracy vs Epsilon")
         plt.suptitle(f'{adv_function} (MNIST {num_classes})')
@@ -457,7 +501,7 @@ def plot_acc_graph(acc_per_eps, testing_eps):
     attack = f"{num_classes}_{adv_function}_{test_function}"
 
     if attack_type == "average":              
-        fig_path = f'figures/{attack_type}/{attack}/{test_function}_acc_eps_{adv_class}.png'
+        fig_path = f'figures/{attack_type}/{attack}/{test_function}_acc_eps_{classes[adv_class]}.png'
     else:
         fig_path = f'figures/{attack_type}/{attack}/acc_eps.png'
     plt.savefig(fig_path, dpi=200)

@@ -19,6 +19,21 @@ class softRmax(nn.Module):
             pos.append(nu[i]/sum(nu))
         pos = torch.stack(pos, 1)
         return pos
+    
+class conservative_softmax_monotone(nn.Module): 
+    def __init__(self, num_classes, a):
+        super(conservative_softmax_monotone, self).__init__()
+        self.num_classes = num_classes
+        self.a = a
+    def forward(self, input):
+        nu = []
+        pos = []
+        for i in range(self.num_classes):
+            nu.append(input[:,i] + torch.sqrt(1 + (input[:,i])**2))
+        for i in range(self.num_classes):
+            pos.append(nu[i]/sum(nu))
+        pos = torch.stack(pos, 1)
+        return pos
 
 class Net(nn.Module):
     def __init__(self, device, num_classes, function, kernel_size):
@@ -34,6 +49,9 @@ class Net(nn.Module):
         self.function = function
         if function == 'softRmax':
             self.softmax = softRmax(num_classes, device)
+            self.conservative = True
+        elif function == 'cons':
+            self.softmax = conservative_softmax_monotone(num_classes, 0.1)
             self.conservative = True
         else:
             self.conservative = False

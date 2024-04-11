@@ -221,7 +221,7 @@ def deepfool(model, clip_min, clip_max, images, device, conservative, labels=Non
             conf_i = conf_i.detach()
             del w_k0, w_k, w_p, f_p
             del perts, l_hat, r_i
-        
+
         images_adv.append(x)
         images_pert.append(x - image)
         confs_adv.append(conf_i.unsqueeze(dim=0))
@@ -235,7 +235,7 @@ def deepfool(model, clip_min, clip_max, images, device, conservative, labels=Non
     images_pert = torch.cat(images_pert)
     confs_adv = torch.cat(confs_adv)
     labels_adv = torch.cat(labels_adv)
-    
+
     del k_all, k_batch
     
     return images_adv, images_pert, confs_adv, labels_adv, iters

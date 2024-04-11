@@ -73,9 +73,9 @@ class BoundaryAttack(MinimizationAttack):
         spherical_step: float = 1e-2,
         source_step: float = 1e-2,
         source_step_convergance: float = 1e-7,
-        step_adaptation: float = 2.0,
+        step_adaptation: float = 1.5,
         tensorboard: Union[Literal[False], None, str] = False,
-        update_stats_every_k: int = 20,
+        update_stats_every_k: int = 10,
     ):
         if init_attack is not None and not isinstance(init_attack, MinimizationAttack):
             raise NotImplementedError
@@ -128,7 +128,6 @@ class BoundaryAttack(MinimizationAttack):
         tb = TensorBoard(logdir=self.tensorboard)
 
         N = len(originals)
-        print(f"Number of images: {N}")
         ndim = originals.ndim
         spherical_steps = ep.ones(originals, N) * self.spherical_step
         source_steps = ep.ones(originals, N) * self.source_step
@@ -147,7 +146,7 @@ class BoundaryAttack(MinimizationAttack):
         for step in range(1, self.steps + 1):
             converged = source_steps < self.source_step_convergance
             amount = torch.sum(converged.raw).item()
-            if amount > 0:
+            if step % 500 == 0 and amount > 0:
                 for i in range(N):
                     conv = converged.raw[i]
                     if converged_samples[i] == 0 and conv:
@@ -157,7 +156,7 @@ class BoundaryAttack(MinimizationAttack):
                 print(step)
                 print(f'converged: ({num_converged_samples} / {N})')
 
-            if converged.all():
+            if num_converged_samples == N:
                 break  # pragma: no cover
             converged = atleast_kd(converged, ndim)
 

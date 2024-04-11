@@ -17,7 +17,7 @@ from fashion_dataset import prepare_dataset
 from fashion_bound import plot_decision_boundary
 
 # Network parameters
-function = 'softmax'
+function = 'cons'
 
 # Data parameters
 num_classes = 10
@@ -27,8 +27,8 @@ test_all = True
 test_index = [3,7]
 
 # Train-Test parameters
-num_epoch = 20
-train_batch_size = 32
+num_epoch = 15
+train_batch_size = 128
 test_batch_size = 128
 lr_list = [2e-3]
 print_freq = 1
@@ -59,7 +59,7 @@ def main():
             f.write(f'learning_rate: {lr}\n\n')
         # For each try we reinitialize the network
         net = Net(device, num_classes, function).to(device)
-        if function == 'softRmax':
+        if function == 'softRmax' or function == 'cons':
             criterion = nn.NLLLoss()
         else:   
             criterion = nn.CrossEntropyLoss()
@@ -67,7 +67,6 @@ def main():
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
 
         best_net = net
-        best_curr_try_acc = 0
         for epoch in range(1, num_epoch + 1):
             scheduler.step()
             train_acc = train(trainloader, net, criterion, optimizer, epoch)
@@ -76,15 +75,11 @@ def main():
                 f.write(f'[epoch {epoch}], train_accuracy: {train_acc:.5f}\n')
             with open(path + f'fashion_{function}_test_accuracy.txt', 'a') as f:
                 f.write(f'[epoch {epoch}], test_accuracy: {test_acc:.5f}\n')
-            if test_acc > best_curr_try_acc:
-                best_curr_try_acc = test_acc 
-                best_net = net
+            if test_acc > best_overall_acc:
+                best_overall_acc = test_acc
+                torch.save(best_net.state_dict(), path + f'best_{function}_net_checkpoint.pt')
 
-        class_acc(testloader, best_net)
-
-        if best_curr_try_acc > best_overall_acc:
-            best_overall_acc = best_curr_try_acc
-            torch.save(best_net.state_dict(), path + f'best_{function}_net_checkpoint.pt')
+    class_acc(testloader, best_net)
     
     return best_overall_acc
 
@@ -103,7 +98,7 @@ def train(train_loader, net, criterion, optimizer, epoch):
 
         outputs = net(X)
         Acc_v = Acc_v + (outputs.argmax(1) - Y).nonzero().size(0)
-        if function == 'softRmax':
+        if function == 'softRmax' or function == 'cons':
             loss = criterion(torch.log(outputs), Y)
         else:
             loss = criterion(outputs, Y)

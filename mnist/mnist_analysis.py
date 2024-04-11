@@ -9,7 +9,7 @@ from mnist_dataset import prepare_dataset
 from mnist_network import Net
 
 # Network parameters
-function = 'softmax'
+function = 'cons'
 kernel_size = 3
 
 # Data parameters
@@ -20,12 +20,12 @@ test_all = True
 test_index = [3, 7]
 
 # Test parameters
-test_batch_size = 128
+test_batch_size = 512
 
 classes = ('0', '1', '2', '3','4', '5', '6', '7', '8', '9')
 
 # When using apple silicon GPU:
-device = torch.device("cpu")
+device = torch.device("mps")
 
 # When using other chip architecture:
 # device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -37,6 +37,7 @@ def main():
     
     net = Net(device, num_classes, function, kernel_size)
     net.load_state_dict(torch.load(path))
+    net.eval()
     print(f'Loaded the {function} network')
 
     class_acc(testloader, net)

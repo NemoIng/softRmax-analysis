@@ -8,8 +8,8 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 
-def prepare_dataset(train_all, train_index, test_all, test_index, mode, normalize=False):
-    if normalize:
+def prepare_dataset(train_all, train_index, test_all, test_index, mode, standardize=True):
+    if standardize:
         transform_train = transforms.Compose([transforms.ToTensor(),
                                                 transforms.Normalize((0.2860,), (0.3205,))])
 
