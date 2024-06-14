@@ -371,7 +371,7 @@ def deepfool_attack(net, images, labels):
         attack_images, noise, _, _, iters = deepfool(net, data_min, data_max, images, device, True, labels)
     robustness1 = compute_robustness(images, noise)
     robustness2 = (images - attack_images) ** 2
-    return attack_images, noise, sum(iters), np.mean(robustness1), robustness2, images, labels
+    return attack_images, noise, sum(iters), np.mean(robustness1), robustness2
 
 def deepfool_vs_fgsm_visualize(net, testset, eps):
     args = [128, 10, 0.02, 50]

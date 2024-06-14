@@ -17,7 +17,7 @@ from cifar_dataset import prepare_dataset, prepare_dataset_cifar100
 from cifar_bound import plot_decision_boundary
 
 # Network parameter
-function = 'softmax'
+function = 'cons'
 
 # Data parameters
 num_classes = 10
@@ -98,7 +98,7 @@ def main():
             f.write(f'[epoch {epoch}], test_accuracy is: {test_acc:.5f}\n')
         if best_Acc < test_acc:
             best_Acc = test_acc
-            # torch.save(net.state_dict(), path + f'best_{function}_net_checkpoint.pt')
+            torch.save(net.state_dict(), path + f'best_{function}_net_checkpoint.pt')
         if epoch in plot_epochs:
             plot_decision_boundary(net, num_classes, epoch, function, index=test_index)
     return best_Acc

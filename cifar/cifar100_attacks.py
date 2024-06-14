@@ -260,7 +260,6 @@ def fgsm_attack(net, images, labels, eps, target_class=None):
                     torch.tensor([target_class for i in range(len(outputs))], dtype=torch.long).to(device))
         else:
             loss_func = nn.CrossEntropyLoss()
-            print(torch.tensor([target_class for i in range(len(outputs))], dtype=torch.long).to(device).shape)
             loss = loss_func(outputs, 
                     torch.tensor([target_class for i in range(len(outputs))], dtype=torch.long).to(device))
             

@@ -27,8 +27,8 @@ from cifar_bound import plot_decision_boundary
 from deepfool import get_clip_bounds, deepfool, display_attack, compute_robustness
 
 # All attack parameters
-test_function = 'softmax'
-attack_type = 'average'
+test_function = 'softRmax'
+attack_type = 'bim'
 if attack_type == 'average':
     testing_eps = [0.3]
     plot_eps = []
@@ -38,7 +38,7 @@ elif attack_type == 'bim':
     plot_eps = [0.1, 0.3]
     test_batch_size = 400
 elif attack_type == 'fgsm':
-    testing_eps = [0.0, 0.1]
+    testing_eps = [0.0, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]
     plot_eps = [0.1, 0.3]
     test_batch_size = 400
 elif attack_type == 'fgsm-target':
@@ -60,11 +60,11 @@ else:
     sys.exit(0)
 class_to_plot = 'bird'
 dec_bound = False # plot decision boundary yes/no
-plot_image_comparison = True # plot comparison between og and adv image
+plot_image_comparison = False # plot comparison between og and adv image
 
 # FGSM/BIM attack parameters
-adv_function = 'softmax' # function for which the adverarial examples will created
-bim_iters = 5 # number of fgsm steps for BIM
+adv_function = 'softRmax' # function for which the adverarial examples will created
+bim_iters = 50 # number of fgsm steps for BIM
 
 # DeepFool variables
 compare_fgsm = False # show visual comparison with fgsm
@@ -291,7 +291,6 @@ def fgsm_attack(net, images, labels, eps, target_class=None):
                     torch.tensor([target_class for i in range(len(outputs))], dtype=torch.long).to(device))
         else:
             loss_func = nn.CrossEntropyLoss()
-            print(torch.tensor([target_class for i in range(len(outputs))], dtype=torch.long).to(device).shape)
             loss = loss_func(outputs, 
                     torch.tensor([target_class for i in range(len(outputs))], dtype=torch.long).to(device))
             
@@ -377,7 +376,7 @@ def deepfool_attack(net, images, labels):
         attack_images, noise, _, _, iters = deepfool(net, data_min, data_max, images, device, True, labels)
     robustness1 = compute_robustness(images, noise)
     robustness2 = (images - attack_images) ** 2
-    return attack_images, noise, sum(iters), np.mean(robustness1), robustness2, images, labels
+    return attack_images, noise, sum(iters), np.mean(robustness1), robustness2
 
 def deepfool_vs_fgsm_visualize(net, testset, eps):
     args = [128, 10, 0.02, 50] 

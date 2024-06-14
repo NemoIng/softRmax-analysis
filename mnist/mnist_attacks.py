@@ -28,13 +28,13 @@ from deepfool import get_clip_bounds, deepfool, display_attack, compute_robustne
 
 # All attack parameters
 test_function = 'softmax'
-attack_type = 'boundary'
+attack_type = 'bim'
 if attack_type == 'average':
     testing_eps = [0.5]
     plot_eps = []
     test_batch_size = 200
 elif attack_type == 'bim':
-    testing_eps = [0.3]
+    testing_eps = [0.1, 0.3]
     plot_eps = [0.1, 0.3]
     test_batch_size = 400
 elif attack_type == 'fgsm':
@@ -59,7 +59,7 @@ else:
     print('attack doesnt exist')  
     sys.exit(0)
 
-dec_bound = True # plot decision boundary yes/no
+dec_bound = False # plot decision boundary yes/no
 if dec_bound: test_batch_size = 200 # if selected set batch_size to 200 (matching the nr. samples deepview uses)
 
 plot_image_comparison = False # plot comparison between og and adv image
@@ -259,7 +259,7 @@ def create_data(net, testloader, testing_eps, target_class=None, adv_class=None)
             print(f"Number of images: {num_imgs}")  
 
             if attack_type == 'deepfool':
-                adv_images, noise, iterations, robust1, robust2, new_images, new_labels = deepfool_attack(net, new_images, new_labels)
+                adv_images, noise, iterations, robust1, robust2 = deepfool_attack(net, new_images, new_labels)
             else:
                 adv_images, noise, robust1, robust2 = boundary_attack(net, new_images, new_labels)
 
@@ -410,7 +410,7 @@ def deepfool_attack(net, images, labels):
         attack_images, noise, _, _, iters = deepfool(net, data_min, data_max, images, device, True, labels)
     robustness1 = compute_robustness(images, noise)
     robustness2 = (images - attack_images) ** 2
-    return attack_images, noise, sum(iters), np.mean(robustness1), robustness2, images, labels
+    return attack_images, noise, sum(iters), np.mean(robustness1), robustness2
 
 def deepfool_vs_fgsm_visualize(net, testset, eps):
     args = [128, 10, 0.02, 50]
